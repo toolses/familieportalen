@@ -85,8 +85,7 @@ interface ChildUkelekser {
              class="flex items-center gap-3 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-2xl p-4 shadow-lg shadow-purple-200 active:scale-[0.98] transition-all">
             <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0 text-xl">🔄</div>
             <div class="flex-1 min-w-0">
-              <p class="font-bold text-white text-sm">Byttedag i morgen!</p>
-              <p class="text-purple-100 text-xs mt-0.5">Sjekk pakkelisten</p>
+              <p class="font-bold text-white text-sm">{{ switchDayAlert().label }}</p>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="opacity-80 shrink-0"><polyline points="9 18 15 12 9 6"/></svg>
           </a>
@@ -456,17 +455,32 @@ export class DashboardComponent {
     return event.title.toLowerCase().startsWith('ukelekse');
   }
 
-  /** True if today's residency differs from tomorrow's — i.e. a handover happens tonight. */
-  readonly isSwitchDayTomorrow = computed(() => {
+  /** True if today or tomorrow is a handover day. Also returns which day for the label. */
+  readonly switchDayAlert = computed<{ active: boolean; label: string }>(() => {
     const today = this.todayIso;
-    const d = new Date(today + 'T00:00:00');
-    d.setDate(d.getDate() + 1);
+    const dTomorrow = new Date(today + 'T00:00:00');
+    dTomorrow.setDate(dTomorrow.getDate() + 1);
     const tomorrow =
-      d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    const todayResidency = this.residency.residencyForDate(today);
-    const tomorrowResidency = this.residency.residencyForDate(tomorrow);
-    return todayResidency !== null && tomorrowResidency !== null && todayResidency !== tomorrowResidency;
+      dTomorrow.getFullYear() + '-' + String(dTomorrow.getMonth() + 1).padStart(2, '0') + '-' + String(dTomorrow.getDate()).padStart(2, '0');
+    const dYesterday = new Date(today + 'T00:00:00');
+    dYesterday.setDate(dYesterday.getDate() - 1);
+    const yesterday =
+      dYesterday.getFullYear() + '-' + String(dYesterday.getMonth() + 1).padStart(2, '0') + '-' + String(dYesterday.getDate()).padStart(2, '0');
+
+    const todayRes = this.residency.residencyForDate(today);
+    const tomorrowRes = this.residency.residencyForDate(tomorrow);
+    const yesterdayRes = this.residency.residencyForDate(yesterday);
+
+    const isToday = todayRes !== null && yesterdayRes !== null && todayRes !== yesterdayRes;
+    const isTomorrow = todayRes !== null && tomorrowRes !== null && todayRes !== tomorrowRes;
+
+    if (isToday) return { active: true, label: 'Byttedag i dag! Sjekk pakkelisten' };
+    if (isTomorrow) return { active: true, label: 'Byttedag i morgen! Sjekk pakkelisten' };
+    return { active: false, label: '' };
   });
+
+  /** @deprecated kept for template compatibility */
+  readonly isSwitchDayTomorrow = computed(() => this.switchDayAlert().active);
 
   goToSkole() { this.router.navigate(['/skole']); }
   goToSettings() { this.router.navigate(['/innstillinger']); }
