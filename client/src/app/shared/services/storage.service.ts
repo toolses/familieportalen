@@ -15,14 +15,6 @@ export class StorageService {
     return Promise.resolve();
   }
 
-  getPlans(): SavedPlan[] {
-    return this.data.getPlans();
-  }
-
-  getPlanByWeek(uke: number, aar: number): SavedPlan | null {
-    return this.data.getPlanByWeek(uke, aar);
-  }
-
   getActiveWeek(): { uke: number; aar: number } | null {
     return this.data.getActiveWeek();
   }

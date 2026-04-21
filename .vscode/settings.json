@@ -4,6 +4,8 @@
         "npm install": true,
         "npx @angular/cli@latest": true,
         "npx ng": true,
-        "npx tsc": true
+        "npx tsc": true,
+        "npx --yes sharp-cli": true,
+        "npx sharp-cli": true
     }
 }

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bg)"/>
+  <!-- House roof -->
+  <polygon points="256,88 432,248 80,248" fill="white" opacity="0.95"/>
+  <!-- House body -->
+  <rect x="112" y="248" width="288" height="188" rx="4" fill="white" opacity="0.95"/>
+  <!-- Door -->
+  <rect x="210" y="320" width="92" height="116" rx="10" fill="#4f46e5"/>
+  <!-- Door handle -->
+  <circle cx="290" cy="382" r="7" fill="white" opacity="0.8"/>
+  <!-- Left window -->
+  <rect x="136" y="284" width="68" height="60" rx="8" fill="#4f46e5" opacity="0.7"/>
+  <!-- Right window -->
+  <rect x="308" y="284" width="68" height="60" rx="8" fill="#4f46e5" opacity="0.7"/>
+  <!-- Chimney -->
+  <rect x="316" y="126" width="40" height="80" rx="4" fill="white" opacity="0.9"/>
+</svg>

@@ -1,5 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { AuthService } from './auth.service';
+import { SchoolDataService } from './school-data.service';
 
 export interface GoogleCalendarInfo {
   id: string;
@@ -22,91 +23,85 @@ export interface GoogleCalendarEvent {
   location: string;
 }
 
-const GOOGLE_CAL_KEY = 'family_portal_google_calendar';
+const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 
 @Injectable({ providedIn: 'root' })
 export class GoogleCalendarService {
-  private http = inject(HttpClient);
+  private auth = inject(AuthService);
+  private data = inject(SchoolDataService);
 
-  readonly isConnected = signal(false);
   readonly calendars = signal<GoogleCalendarInfo[]>([]);
   readonly selectedCalendarId = signal<string | null>(null);
   readonly events = signal<GoogleCalendarEvent[]>([]);
   readonly loading = signal(false);
+
+  readonly isConnected = computed(() => !!this.auth.getGoogleAccessToken());
 
   readonly selectedCalendar = computed(() => {
     const id = this.selectedCalendarId();
     return this.calendars().find((c) => c.id === id) ?? null;
   });
 
-  constructor() {
-    this.loadPersistedSelection();
-    this.checkStatus();
+  constructor() {}
+
+  /** Call after login to load calendars */
+  async initAfterLogin(): Promise<void> {
+    const token = this.auth.getGoogleAccessToken();
+    if (token) {
+      await this.fetchCalendars();
+    }
   }
 
-  checkStatus(): void {
-    this.http.get<{ connected: boolean }>('/api/auth/google/status').subscribe({
-      next: (res) => {
-        this.isConnected.set(res.connected);
-        if (res.connected) {
-          this.fetchCalendars();
+  async fetchCalendars(): Promise<void> {
+    const token = await this.getValidToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${CALENDAR_API}/users/me/calendarList`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Calendar API: ${res.status}`);
+
+      const data = await res.json();
+      const cals: GoogleCalendarInfo[] = (data.items ?? []).map((item: any) => ({
+        id: item.id,
+        summary: item.summary ?? '',
+        description: item.description ?? '',
+        primary: item.primary ?? false,
+        backgroundColor: item.backgroundColor ?? '#4285f4',
+      }));
+
+      this.calendars.set(cals);
+
+      // Restore persisted selection or default to primary
+      const persistedId = this.data.googleCalendarId();
+      if (persistedId && cals.some((c) => c.id === persistedId)) {
+        this.selectedCalendarId.set(persistedId);
+        await this.fetchEvents(persistedId);
+      } else {
+        const primary = cals.find((c) => c.primary);
+        if (primary) {
+          await this.selectCalendar(primary.id);
         }
-      },
-      error: () => this.isConnected.set(false),
-    });
+      }
+    } catch (err) {
+      console.error('Failed to fetch calendars:', err);
+      this.calendars.set([]);
+    }
   }
 
-  startOAuthFlow(): void {
-    this.http.get<{ url: string }>('/api/auth/google/url').subscribe({
-      next: (res) => {
-        window.location.href = res.url;
-      },
-    });
-  }
-
-  disconnect(): void {
-    this.http.post('/api/auth/google/disconnect', {}).subscribe({
-      next: () => {
-        this.isConnected.set(false);
-        this.calendars.set([]);
-        this.selectedCalendarId.set(null);
-        this.events.set([]);
-        localStorage.removeItem(GOOGLE_CAL_KEY);
-      },
-    });
-  }
-
-  fetchCalendars(): void {
-    this.http.get<{ calendars: GoogleCalendarInfo[] }>('/api/calendar/list').subscribe({
-      next: (res) => {
-        this.calendars.set(res.calendars);
-        // Restore persisted selection or default to primary
-        const persisted = this.selectedCalendarId();
-        if (persisted && res.calendars.some((c) => c.id === persisted)) {
-          this.fetchEvents(persisted);
-        } else {
-          const primary = res.calendars.find((c) => c.primary);
-          if (primary) {
-            this.selectCalendar(primary.id);
-          }
-        }
-      },
-    });
-  }
-
-  selectCalendar(calendarId: string): void {
+  async selectCalendar(calendarId: string): Promise<void> {
     this.selectedCalendarId.set(calendarId);
-    localStorage.setItem(GOOGLE_CAL_KEY, calendarId);
-    this.fetchEvents(calendarId);
+    this.data.setGoogleCalendarId(calendarId);
+    await this.fetchEvents(calendarId);
   }
 
-  fetchEvents(calendarId: string): void {
-    this.fetchEventsForRange(calendarId);
-  }
+  async fetchEvents(calendarId: string, startDate?: Date, endDate?: Date): Promise<void> {
+    const token = await this.getValidToken();
+    if (!token) return;
 
-  fetchEventsForRange(calendarId: string, startDate?: Date, endDate?: Date): void {
-    const now = new Date();
     if (!startDate || !endDate) {
+      const now = new Date();
       const dayOfWeek = now.getDay();
       const monday = new Date(now);
       monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
@@ -119,29 +114,102 @@ export class GoogleCalendarService {
       endDate = sunday;
     }
 
-    const params = {
-      timeMin: startDate.toISOString(),
-      timeMax: endDate.toISOString(),
-    };
-
-    this.http
-      .get<{ events: GoogleCalendarEvent[] }>(
-        `/api/calendar/events/${encodeURIComponent(calendarId)}`,
-        { params }
-      )
-      .subscribe({
-        next: (res) => this.events.set(res.events),
-        error: () => this.events.set([]),
+    this.loading.set(true);
+    try {
+      const params = new URLSearchParams({
+        timeMin: startDate.toISOString(),
+        timeMax: endDate.toISOString(),
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: '250',
       });
+
+      const res = await fetch(
+        `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) throw new Error(`Events API: ${res.status}`);
+
+      const data = await res.json();
+      const events: GoogleCalendarEvent[] = (data.items ?? []).flatMap((item: any) => {
+        return this.expandEvent(item);
+      });
+
+      this.events.set(events);
+    } catch (err) {
+      console.error('Failed to fetch events:', err);
+      this.events.set([]);
+    } finally {
+      this.loading.set(false);
+    }
   }
 
-  refreshEvents(): void {
+  async refreshEvents(): Promise<void> {
     const id = this.selectedCalendarId();
-    if (id) this.fetchEvents(id);
+    if (id) await this.fetchEvents(id);
   }
 
-  private loadPersistedSelection(): void {
-    const saved = localStorage.getItem(GOOGLE_CAL_KEY);
-    if (saved) this.selectedCalendarId.set(saved);
+  async fetchEventsForRange(calendarId: string, startDate?: Date, endDate?: Date): Promise<void> {
+    await this.fetchEvents(calendarId, startDate, endDate);
+  }
+
+  disconnect(): void {
+    this.calendars.set([]);
+    this.selectedCalendarId.set(null);
+    this.events.set([]);
+    this.data.setGoogleCalendarId(null);
+  }
+
+  private expandEvent(item: any): GoogleCalendarEvent[] {
+    const isAllDay = !!item.start?.date;
+    const startStr = item.start?.dateTime ?? item.start?.date ?? '';
+    const endStr = item.end?.dateTime ?? item.end?.date ?? '';
+
+    if (isAllDay) {
+      // Multi-day all-day events: expand to one entry per day
+      const start = new Date(startStr);
+      const end = new Date(endStr);
+      const events: GoogleCalendarEvent[] = [];
+      const current = new Date(start);
+      while (current < end) {
+        events.push({
+          id: item.id,
+          summary: item.summary ?? '',
+          description: item.description ?? '',
+          date: current.toISOString().slice(0, 10),
+          startTime: null,
+          endTime: null,
+          allDay: true,
+          spanStart: start.toISOString().slice(0, 10),
+          spanEnd: new Date(end.getTime() - 86400000).toISOString().slice(0, 10),
+          location: item.location ?? '',
+        });
+        current.setDate(current.getDate() + 1);
+      }
+      return events;
+    }
+
+    const startDT = new Date(startStr);
+    return [{
+      id: item.id,
+      summary: item.summary ?? '',
+      description: item.description ?? '',
+      date: startDT.toISOString().slice(0, 10),
+      startTime: startDT.toTimeString().slice(0, 5),
+      endTime: endStr ? new Date(endStr).toTimeString().slice(0, 5) : null,
+      allDay: false,
+      spanStart: null,
+      spanEnd: null,
+      location: item.location ?? '',
+    }];
+  }
+
+  private async getValidToken(): Promise<string | null> {
+    let token = this.auth.getGoogleAccessToken();
+    if (!token) {
+      // Try refreshing
+      token = await this.auth.refreshGoogleAccessToken();
+    }
+    return token;
   }
 }

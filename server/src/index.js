@@ -2,8 +2,6 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { schoolPlanRouter } from './features/school-plan/school-plan.routes.js';
-import { googleAuthRouter } from './features/google/google-auth.routes.js';
-import { googleCalendarRouter } from './features/google/google-calendar.routes.js';
 
 process.on('uncaughtException', (err) => {
   console.error('[CRASH] uncaughtException:', err);
@@ -13,14 +11,11 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 app.use('/api/school-plan', schoolPlanRouter);
-app.use('/api/auth/google', googleAuthRouter);
-app.use('/api/calendar', googleCalendarRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
@@ -39,4 +34,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'En uventet serverfeil oppstod.' });
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Export for Cloud Functions
+export { app };
+
+// Standalone mode for local development
+const PORT = process.env.PORT || 3000;
+if (process.env.FUNCTIONS_EMULATOR !== 'true') {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}

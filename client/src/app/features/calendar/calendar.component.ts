@@ -159,6 +159,9 @@ interface CalendarDay {
                     <span class="font-medium text-gray-800 text-sm">{{ event.summary }}</span>
                   </div>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
+                  @if (event.description) {
+                    <p class="text-xs text-gray-500 mt-0.5">{{ event.description }}</p>
+                  }
                   @if (event.location) {
                     <p class="text-xs text-gray-400">{{ event.location }}</p>
                   }
@@ -278,12 +281,7 @@ export class CalendarComponent {
 
   formatEventTimeLabel(event: GoogleCalendarEvent): string {
     if (event.startTime) {
-      const startDate = event.startTime.slice(0, 10);
-      const endDate = event.endTime?.slice(0, 10) ?? startDate;
-      if (startDate !== endDate) {
-        return `${formatDateShort(startDate)} ${this.formatTime(event.startTime)} – ${formatDateShort(endDate)} ${this.formatTime(event.endTime!)}`;
-      }
-      return `${this.formatTime(event.startTime)}${event.endTime ? ' – ' + this.formatTime(event.endTime) : ''}`;
+      return `${event.startTime}${event.endTime ? ' – ' + event.endTime : ''}`;
     }
     if (event.spanStart && event.spanEnd && event.spanStart !== event.spanEnd) {
       return `${formatDateShort(event.spanStart)} – ${formatDateShort(event.spanEnd)}`;

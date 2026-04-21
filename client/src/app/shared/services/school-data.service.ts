@@ -1,9 +1,13 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  onSnapshot,
+  type Unsubscribe,
+} from 'firebase/firestore';
 import { PlanMetadata, SchoolEvent, SavedPlan, Child, FamilyState, BaseRotation, ResidencyOverrides } from '../../features/school-plan/models/school-plan.models';
-
-const STORAGE_KEY = 'family_portal_data';
-const ACTIVE_WEEK_KEY = 'family_portal_active_week';
-const FAMILY_KEY = 'family_portal_family';
+import { AuthService } from './auth.service';
 
 const CHILD_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981'];
 
@@ -13,6 +17,11 @@ export interface PortalSettings {
 
 @Injectable({ providedIn: 'root' })
 export class SchoolDataService {
+  private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
+  private db = getFirestore();
+  private unsubFirestore: Unsubscribe | null = null;
+
   // ── Family state ──────────────────────────────────────────
   readonly children = signal<Child[]>([]);
   readonly activeChildId = signal<string | null>(null);
@@ -20,6 +29,8 @@ export class SchoolDataService {
   readonly plansMap = signal<{ [childId: string]: SavedPlan[] }>({});
   readonly baseRotation = signal<BaseRotation | null>(null);
   readonly residencyOverrides = signal<ResidencyOverrides>({});
+  readonly activeWeek = signal<{ uke: number; aar: number } | null>(null);
+  readonly googleCalendarId = signal<string | null>(null);
 
   readonly activeChild = computed(() => {
     const id = this.activeChildId();
@@ -28,34 +39,40 @@ export class SchoolDataService {
 
   readonly activePlan = computed<SavedPlan | null>(() => {
     const childId = this.activeChildId();
-    if (!childId) return this.legacyActivePlan();
+    if (!childId) return null;
     const childPlans = this.plansMap()[childId] ?? [];
-    const activeWeek = this.getActiveWeek();
-    if (activeWeek) {
+    const week = this.activeWeek();
+    if (week) {
       const match = childPlans.find(
-        (p) => p.metadata.uke === activeWeek.uke && p.metadata.aar === activeWeek.aar
+        (p) => p.metadata.uke === week.uke && p.metadata.aar === week.aar
       );
       if (match) return match;
     }
     return childPlans.length > 0 ? childPlans[childPlans.length - 1] : null;
   });
 
-  /** Fallback for users who have plans but no children set up yet */
-  private legacyActivePlan = signal<SavedPlan | null>(null);
-
   readonly activePlanEvents = computed(() => this.activePlan()?.events ?? []);
   readonly activePlanMetadata = computed(() => this.activePlan()?.metadata ?? null);
 
-  readonly settings = computed<PortalSettings>(() => {
-    const label = this.householdLabel();
-    return {
-      parentLabels: { A: 'Mamma', B: 'Pappa' },
-    };
-  });
+  readonly settings = computed<PortalSettings>(() => ({
+    parentLabels: { A: 'Mamma', B: 'Pappa' },
+  }));
 
   constructor() {
-    this.loadFamily();
-    this.loadLegacyActivePlan();
+    // Subscribe to Firestore when user is logged in
+    // Use an effect-like pattern: check auth state periodically
+    const checkAuth = setInterval(() => {
+      if (!this.auth.loading()) {
+        clearInterval(checkAuth);
+        if (this.auth.isLoggedIn()) {
+          this.subscribeToFirestore();
+        }
+      }
+    }, 100);
+
+    this.destroyRef.onDestroy(() => {
+      this.unsubFirestore?.();
+    });
   }
 
   // ── Child management ─────────────────────────────────────
@@ -71,7 +88,7 @@ export class SchoolDataService {
     if (!this.activeChildId()) {
       this.activeChildId.set(child.id);
     }
-    this.persistFamily();
+    this.persist();
     return child;
   }
 
@@ -86,22 +103,22 @@ export class SchoolDataService {
       const remaining = this.children();
       this.activeChildId.set(remaining.length > 0 ? remaining[0].id : null);
     }
-    this.persistFamily();
+    this.persist();
   }
 
   setActiveChild(id: string): void {
     this.activeChildId.set(id);
-    this.persistFamily();
+    this.persist();
   }
 
   setHouseholdLabel(label: 'Mamma' | 'Pappa' | null): void {
     this.householdLabel.set(label);
-    this.persistFamily();
+    this.persist();
   }
 
   setBaseRotation(rotation: BaseRotation | null): void {
     this.baseRotation.set(rotation);
-    this.persistFamily();
+    this.persist();
   }
 
   setResidencyOverride(date: string, label: 'Mamma' | 'Pappa' | null): void {
@@ -114,7 +131,7 @@ export class SchoolDataService {
       }
       return copy;
     });
-    this.persistFamily();
+    this.persist();
   }
 
   // ── Plan persistence ────────────────────────────────────────
@@ -137,100 +154,114 @@ export class SchoolDataService {
       return { ...m, [childId]: plans };
     });
     this.setActiveWeek(metadata.uke, metadata.aar);
-    this.persistFamily();
+    this.persist();
   }
 
-  /** Legacy method — saves for active child or as legacy plan */
   savePlan(metadata: PlanMetadata, events: SchoolEvent[], house?: 'A' | 'B', images?: { front: string; back?: string }): void {
     const childId = this.activeChildId();
     if (childId) {
       this.savePlanForChild(childId, metadata, events, house, images);
-    } else {
-      // Legacy: no children configured
-      const plans = this.getPlans();
-      const idx = plans.findIndex(
-        (p) => p.metadata.uke === metadata.uke && p.metadata.aar === metadata.aar
-      );
-      const entry: SavedPlan = { metadata, events, savedAt: new Date().toISOString(), house, images };
-      if (idx >= 0) plans[idx] = entry;
-      else plans.push(entry);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
-      this.setActiveWeek(metadata.uke, metadata.aar);
-      this.legacyActivePlan.set(entry);
     }
-  }
-
-  getPlans(): SavedPlan[] {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    try { return JSON.parse(raw); } catch { return []; }
   }
 
   getPlansForChild(childId: string): SavedPlan[] {
     return this.plansMap()[childId] ?? [];
   }
 
-  getPlanByWeek(uke: number, aar: number): SavedPlan | null {
-    return this.getPlans().find((p) => p.metadata.uke === uke && p.metadata.aar === aar) ?? null;
-  }
-
   // ── Active week ──────────────────────────────────────────────
 
   setActiveWeek(uke: number, aar: number): void {
-    localStorage.setItem(ACTIVE_WEEK_KEY, JSON.stringify({ uke, aar }));
+    this.activeWeek.set({ uke, aar });
+    this.persist();
   }
 
   getActiveWeek(): { uke: number; aar: number } | null {
-    const raw = localStorage.getItem(ACTIVE_WEEK_KEY);
-    if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
+    return this.activeWeek();
   }
 
-  // ── Settings (kept for backward compat) ────────────────────
+  // ── Settings ────────────────────────────────────────────────
 
   saveSettings(s: PortalSettings): void {
     // parentLabels no longer used directly, but keep API
   }
 
+  setGoogleCalendarId(id: string | null): void {
+    this.googleCalendarId.set(id);
+    this.persist();
+  }
+
+  // ── Clear all data ──────────────────────────────────────────
+
+  async clearAllData(): Promise<void> {
+    this.children.set([]);
+    this.activeChildId.set(null);
+    this.householdLabel.set(null);
+    this.plansMap.set({});
+    this.baseRotation.set(null);
+    this.residencyOverrides.set({});
+    this.activeWeek.set(null);
+    this.googleCalendarId.set(null);
+    await this.persistToFirestore();
+  }
+
   // ── Persistence ─────────────────────────────────────────────
 
-  private persistFamily(): void {
-    const state: FamilyState = {
+  private getState(): FamilyState {
+    return {
       children: this.children(),
       activeChildId: this.activeChildId(),
       householdLabel: this.householdLabel(),
       plans: this.plansMap(),
       baseRotation: this.baseRotation(),
       residencyOverrides: this.residencyOverrides(),
+      googleCalendarId: this.googleCalendarId() ?? null,
     };
-    localStorage.setItem(FAMILY_KEY, JSON.stringify(state));
   }
 
-  private loadFamily(): void {
-    const raw = localStorage.getItem(FAMILY_KEY);
-    if (!raw) return;
+  private persist(): void {
+    this.persistToFirestore();
+  }
+
+  private async persistToFirestore(): Promise<void> {
+    const uid = this.auth.user()?.uid;
+    if (!uid) return;
+
+    const state = this.getState();
+    const raw = { ...state, activeWeek: this.activeWeek(), updatedAt: new Date().toISOString() };
+    // Strip undefined values — Firestore rejects them
+    const data = JSON.parse(JSON.stringify(raw));
+
     try {
-      const state: FamilyState = JSON.parse(raw);
-      this.children.set(state.children ?? []);
-      this.activeChildId.set(state.activeChildId ?? null);
-      this.householdLabel.set(state.householdLabel ?? null);
-      this.plansMap.set(state.plans ?? {});
-      this.baseRotation.set(state.baseRotation ?? null);
-      this.residencyOverrides.set(state.residencyOverrides ?? {});
-    } catch { /* keep defaults */ }
+      await setDoc(doc(this.db, 'users', uid), data);
+    } catch (err) {
+      console.error('Firestore write failed:', err);
+    }
   }
 
-  private loadLegacyActivePlan(): void {
-    if (this.children().length > 0) return; // Family mode active
-    const activeWeek = this.getActiveWeek();
-    let plan: SavedPlan | null = null;
-    if (activeWeek) {
-      plan = this.getPlanByWeek(activeWeek.uke, activeWeek.aar);
+  private subscribeToFirestore(): void {
+    const uid = this.auth.user()?.uid;
+    if (!uid) return;
+
+    this.unsubFirestore?.();
+    this.unsubFirestore = onSnapshot(doc(this.db, 'users', uid), (snap) => {
+      if (!snap.exists()) return;
+      const state = snap.data() as FamilyState & { activeWeek?: { uke: number; aar: number } | null };
+      this.applyState(state);
+    });
+  }
+
+  private applyState(state: FamilyState & { activeWeek?: { uke: number; aar: number } | null }): void {
+    this.children.set(state.children ?? []);
+    this.activeChildId.set(state.activeChildId ?? null);
+    this.householdLabel.set(state.householdLabel ?? null);
+    this.plansMap.set(state.plans ?? {});
+    this.baseRotation.set(state.baseRotation ?? null);
+    this.residencyOverrides.set(state.residencyOverrides ?? {});
+    if (state.activeWeek) {
+      this.activeWeek.set(state.activeWeek);
     }
-    if (!plan) {
-      const plans = this.getPlans();
-      if (plans.length > 0) plan = plans[plans.length - 1];
+    if (state.googleCalendarId !== undefined) {
+      this.googleCalendarId.set(state.googleCalendarId);
     }
-    this.legacyActivePlan.set(plan);
   }
 }
