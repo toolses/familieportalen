@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, effect } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { AuthService } from './shared/services/auth.service';
 
@@ -72,6 +72,19 @@ import { AuthService } from './shared/services/auth.service';
 export class App {
   auth = inject(AuthService);
   private router = inject(Router);
+
+  constructor() {
+    effect(() => {
+      if (!this.auth.loading()) {
+        const splash = document.getElementById('splash');
+        if (splash) {
+          splash.style.opacity = '0';
+          splash.style.pointerEvents = 'none';
+          setTimeout(() => splash.remove(), 350);
+        }
+      }
+    });
+  }
 
   async logout() {
     await this.auth.signOut();

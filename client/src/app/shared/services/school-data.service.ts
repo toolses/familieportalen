@@ -190,6 +190,22 @@ export class SchoolDataService {
     this.savePlanForChild(childId, plan.metadata, newEvents, plan.house, plan.images);
   }
 
+  updateEventInPlan(childId: string, target: SchoolEvent, updated: SchoolEvent): void {
+    const plans = this.plansMap()[childId];
+    if (!plans?.length) return;
+    const plan = plans[plans.length - 1];
+    const newEvents = plan.events.map((e) => (e === target ? updated : e));
+    this.savePlanForChild(childId, plan.metadata, newEvents, plan.house, plan.images);
+  }
+
+  deleteEventFromPlan(childId: string, target: SchoolEvent): void {
+    const plans = this.plansMap()[childId];
+    if (!plans?.length) return;
+    const plan = plans[plans.length - 1];
+    const newEvents = plan.events.filter((e) => e !== target);
+    this.savePlanForChild(childId, plan.metadata, newEvents, plan.house, plan.images);
+  }
+
   getPlansForChild(childId: string): SavedPlan[] {
     return this.plansMap()[childId] ?? [];
   }

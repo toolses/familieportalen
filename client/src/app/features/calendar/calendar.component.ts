@@ -5,12 +5,15 @@ import { GoogleCalendarService, GoogleCalendarEvent } from '../../shared/service
 import { SchoolEvent, SavedPlan } from '../school-plan/models/school-plan.models';
 import { formatDateShort, dayName } from '../../shared/utils/date-utils';
 import { SwipeDirective } from '../../shared/directives/swipe.directive';
+import { EventEditSheetComponent, WeekDayOption } from '../../shared/components/event-edit-sheet.component';
 
 type FilterMode = 'all' | 'homework' | 'reminders';
 
 interface TaggedSchoolEvent extends SchoolEvent {
   childName: string;
   childColor: string;
+  childId: string;
+  _original: SchoolEvent;
 }
 
 interface CalendarDay {
@@ -26,7 +29,7 @@ interface CalendarDay {
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [SwipeDirective],
+  imports: [SwipeDirective, EventEditSheetComponent],
   template: `
     <div class="px-4 pt-2 pb-6 space-y-3" appSwipe (swipeLeft)="nextWeek()" (swipeRight)="prevWeek()">
       <!-- Header -->
@@ -120,7 +123,8 @@ interface CalendarDay {
 
             @for (event of day.schoolEvents; track $index) {
               @if (event.category === 'reminder') {
-                <div class="flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3">
+                <button (click)="openEditEvent(event)"
+                        class="w-full flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3 text-left active:bg-amber-100 transition-colors">
                   <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" [style.background]="event.childColor"></div>
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
@@ -130,10 +134,11 @@ interface CalendarDay {
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
                   <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
-                </div>
+                </button>
               }
               @if (event.category === 'homework') {
-                <div class="flex gap-3 items-start bg-blue-50 border border-blue-100 rounded-xl p-3">
+                <button (click)="openEditEvent(event)"
+                        class="w-full flex gap-3 items-start bg-blue-50 border border-blue-100 rounded-xl p-3 text-left active:bg-blue-100 transition-colors">
                   <div class="w-2 h-2 rounded-full bg-blue-400 mt-1.5 shrink-0"></div>
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
@@ -143,7 +148,7 @@ interface CalendarDay {
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
                   <span class="text-[10px] text-blue-600 font-medium bg-blue-100 px-1.5 py-0.5 rounded shrink-0">Lekse</span>
-                </div>
+                </button>
               }
             }
 
@@ -174,6 +179,15 @@ interface CalendarDay {
         }
       </div>
     </div>
+
+    @if (editingEvent()) {
+      <app-event-edit-sheet
+        [event]="editingEvent()!"
+        [weekDays]="weekDayOptions()"
+        (saved)="onEventSaved($event)"
+        (deleted)="onEventDeleted()"
+        (cancelled)="editingEvent.set(null)" />
+    }
   `,
   styles: `
     .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -184,6 +198,15 @@ export class CalendarComponent {
   data = inject(SchoolDataService);
   residency = inject(ResidencyService);
   private google = inject(GoogleCalendarService);
+
+  editingEvent = signal<TaggedSchoolEvent | null>(null);
+
+  weekDayOptions = computed<WeekDayOption[]>(() =>
+    this.weekDates().map((date) => ({
+      date,
+      label: this.capitalize(dayName(date)) + ' ' + formatDateShort(date),
+    }))
+  );
 
   private get today() {
     const d = new Date();
@@ -241,7 +264,7 @@ export class CalendarComponent {
           e.category !== 'information' &&
           !this.isUkelekse(e)
         ) {
-          allTagged.push({ ...e, childName: child.name, childColor: child.color });
+          allTagged.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, _original: e });
         }
       }
     }
@@ -275,6 +298,24 @@ export class CalendarComponent {
   prevWeek(): void { this.weekOffset.update((o) => o - 1); this.refreshGoogleForWeek(); }
   nextWeek(): void { this.weekOffset.update((o) => o + 1); this.refreshGoogleForWeek(); }
   goToToday(): void { this.weekOffset.set(0); this.refreshGoogleForWeek(); }
+
+  openEditEvent(event: TaggedSchoolEvent): void {
+    this.editingEvent.set(event);
+  }
+
+  onEventSaved(updated: SchoolEvent): void {
+    const original = this.editingEvent();
+    if (!original) return;
+    this.data.updateEventInPlan(original.childId, original._original, updated);
+    this.editingEvent.set(null);
+  }
+
+  onEventDeleted(): void {
+    const original = this.editingEvent();
+    if (!original) return;
+    this.data.deleteEventFromPlan(original.childId, original._original);
+    this.editingEvent.set(null);
+  }
 
   isUkelekse(event: SchoolEvent): boolean {
     const title = event.title.toLowerCase();
