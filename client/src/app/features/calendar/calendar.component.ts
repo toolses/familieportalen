@@ -4,6 +4,7 @@ import { ResidencyService } from '../../shared/services/residency.service';
 import { GoogleCalendarService, GoogleCalendarEvent } from '../../shared/services/google-calendar.service';
 import { SchoolEvent, SavedPlan } from '../school-plan/models/school-plan.models';
 import { formatDateShort, dayName } from '../../shared/utils/date-utils';
+import { SwipeDirective } from '../../shared/directives/swipe.directive';
 
 type FilterMode = 'all' | 'homework' | 'reminders';
 
@@ -25,8 +26,9 @@ interface CalendarDay {
 @Component({
   selector: 'app-calendar',
   standalone: true,
+  imports: [SwipeDirective],
   template: `
-    <div class="px-4 pt-2 pb-6 space-y-3">
+    <div class="px-4 pt-2 pb-6 space-y-3" appSwipe (swipeLeft)="nextWeek()" (swipeRight)="prevWeek()">
       <!-- Header -->
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-bold text-gray-800">Kalender</h2>

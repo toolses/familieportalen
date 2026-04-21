@@ -8,6 +8,7 @@ import { SchoolPlanService } from '../school-plan/services/school-plan.service';
 import { PlanMetadata } from '../school-plan/models/school-plan.models';
 import { FormsModule } from '@angular/forms';
 import { downscaleBase64Image } from '../../shared/utils/image-utils';
+import { SwipeDirective } from '../../shared/directives/swipe.directive';
 
 interface DayInfo {
   date: string;
@@ -21,7 +22,7 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
 @Component({
   selector: 'app-skole',
   standalone: true,
-  imports: [ImageCaptureComponent, PlanReviewComponent, FormsModule],
+  imports: [ImageCaptureComponent, PlanReviewComponent, FormsModule, SwipeDirective],
   template: `
     @switch (view()) {
       @case ('WEEK') {
@@ -59,7 +60,7 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
             </button>
           </div>
         } @else {
-          <div class="px-4 pt-2 pb-6 space-y-4">
+          <div class="px-4 pt-2 pb-6 space-y-4" appSwipe (swipeLeft)="nextDay()" (swipeRight)="prevDay()">
             <!-- Week header -->
             <div class="flex items-center justify-between">
               <h2 class="text-lg font-bold text-gray-800">
@@ -104,7 +105,8 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                 </h3>
                 <div class="space-y-2">
                   @for (event of informationEvents(); track $index) {
-                    <div class="flex gap-3 items-start bg-white/60 rounded-xl p-3">
+                    <button (click)="openEditEvent(event)"
+                            class="w-full flex gap-3 items-start bg-white/60 rounded-xl p-3 active:bg-white transition-colors text-left">
                       <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"></div>
                       <div class="flex-1 min-w-0">
                         <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
@@ -112,7 +114,8 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                           <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
                         }
                       </div>
-                    </div>
+                      <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0 mt-0.5">Informasjon</span>
+                    </button>
                   }
                 </div>
               </div>
@@ -128,7 +131,8 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                 </h3>
                 <div class="space-y-2">
                   @for (event of reminderEvents(); track $index) {
-                    <div class="flex gap-3 items-start bg-white/60 rounded-xl p-3">
+                    <button (click)="openEditEvent(event)"
+                            class="w-full flex gap-3 items-start bg-white/60 rounded-xl p-3 active:bg-white transition-colors text-left">
                       <div class="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0"></div>
                       <div class="flex-1 min-w-0">
                         <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
@@ -136,7 +140,8 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                           <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
                         }
                       </div>
-                    </div>
+                      <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0 mt-0.5">Påminnelse</span>
+                    </button>
                   }
                 </div>
               </div>
@@ -152,7 +157,8 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                 </h3>
                 <div class="space-y-2">
                   @for (event of homeworkEvents(); track $index) {
-                    <div class="flex gap-3 items-start">
+                    <button (click)="openEditEvent(event)"
+                            class="w-full flex gap-3 items-start active:bg-blue-50/50 rounded-xl transition-colors text-left">
                       @if (isUkelekse(event)) {
                         <!-- Star icon for ukelekse -->
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400 mt-1 shrink-0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -165,7 +171,8 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                           <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
                         }
                       </div>
-                    </div>
+                      <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0 mt-0.5">Lekse</span>
+                    </button>
                   }
                 </div>
               </div>
@@ -296,10 +303,75 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
         </div>
       }
     }
+
+    <!-- Event edit modal -->
+    @if (editingEvent()) {
+      <div class="fixed inset-0 z-50 flex flex-col justify-end">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="closeEventModal()"></div>
+        <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 safe-bottom shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto modal-sheet">
+          <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1"></div>
+          <h3 class="text-lg font-bold text-gray-900">Rediger hendelse</h3>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Tittel</label>
+              <input [(ngModel)]="modalEventTitle"
+                     class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Beskrivelse</label>
+              <input [(ngModel)]="modalEventDescription"
+                     class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Kategori</label>
+              <select [(ngModel)]="modalEventCategory"
+                      class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="school_class">Skoletime</option>
+                <option value="homework">Lekse</option>
+                <option value="reminder">Påminnelse</option>
+                <option value="information">Informasjon</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Dag</label>
+              <select [(ngModel)]="modalEventDate"
+                      class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                @for (day of weekDays(); track day.date) {
+                  <option [value]="day.date">{{ day.dayName.charAt(0).toUpperCase() + day.dayName.slice(1) }} {{ day.label }}.</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-1">
+            <button (click)="saveEventModal()"
+                    [disabled]="!modalEventTitle.trim()"
+                    class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-40 active:scale-[0.98] transition-all">
+              Lagre endringer
+            </button>
+            <button (click)="deleteEditingEvent()"
+                    class="w-full py-3 rounded-xl font-medium text-sm text-red-600 bg-red-50 active:scale-[0.98] transition-all">
+              Slett hendelse
+            </button>
+            <button (click)="closeEventModal()"
+                    class="w-full py-3 rounded-xl font-medium text-sm text-gray-500 active:scale-[0.98] transition-all">
+              Avbryt
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: `
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 1.25rem); }
+    @keyframes slide-up {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .modal-sheet { animation: slide-up 0.25s cubic-bezier(0.32, 0.72, 0, 1); }
   `,
 })
 export class SkoleComponent implements OnInit {
@@ -368,6 +440,13 @@ export class SkoleComponent implements OnInit {
   planImages = computed(() => this.data.activePlan()?.images ?? null);
   lightboxImage = signal<string | null>(null);
 
+  // Event edit modal
+  editingEvent = signal<SchoolEvent | null>(null);
+  modalEventTitle = '';
+  modalEventDescription = '';
+  modalEventCategory: SchoolEvent['category'] = 'homework';
+  modalEventDate = '';
+
   ngOnInit() {
     this.initSelectedDate();
   }
@@ -389,6 +468,50 @@ export class SkoleComponent implements OnInit {
 
   isUkelekse(event: SchoolEvent): boolean {
     return event.title.toLowerCase().startsWith('ukelekse');
+  }
+
+  prevDay(): void {
+    const days = this.weekDays();
+    const idx = days.findIndex((d) => d.date === this.selectedDate());
+    if (idx > 0) this.selectedDate.set(days[idx - 1].date);
+  }
+
+  nextDay(): void {
+    const days = this.weekDays();
+    const idx = days.findIndex((d) => d.date === this.selectedDate());
+    if (idx !== -1 && idx < days.length - 1) this.selectedDate.set(days[idx + 1].date);
+  }
+
+  openEditEvent(event: SchoolEvent): void {
+    this.editingEvent.set(event);
+    this.modalEventTitle = event.title;
+    this.modalEventDescription = event.description;
+    this.modalEventCategory = event.category;
+    this.modalEventDate = event.date;
+  }
+
+  closeEventModal(): void {
+    this.editingEvent.set(null);
+  }
+
+  saveEventModal(): void {
+    const event = this.editingEvent();
+    if (!event) return;
+    const updated: SchoolEvent = {
+      date: this.modalEventDate,
+      title: this.modalEventTitle.trim(),
+      description: this.modalEventDescription.trim(),
+      category: this.modalEventCategory,
+    };
+    this.data.updateEventInActivePlan(event, updated);
+    this.closeEventModal();
+  }
+
+  deleteEditingEvent(): void {
+    const event = this.editingEvent();
+    if (!event) return;
+    this.data.deleteEventFromActivePlan(event);
+    this.closeEventModal();
   }
 
   // ── Scan flow ──────────────────────

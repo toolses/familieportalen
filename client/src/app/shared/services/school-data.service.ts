@@ -174,6 +174,22 @@ export class SchoolDataService {
     }
   }
 
+  updateEventInActivePlan(target: SchoolEvent, updated: SchoolEvent): void {
+    const childId = this.activeChildId();
+    const plan = this.activePlan();
+    if (!childId || !plan) return;
+    const newEvents = plan.events.map((e) => (e === target ? updated : e));
+    this.savePlanForChild(childId, plan.metadata, newEvents, plan.house, plan.images);
+  }
+
+  deleteEventFromActivePlan(target: SchoolEvent): void {
+    const childId = this.activeChildId();
+    const plan = this.activePlan();
+    if (!childId || !plan) return;
+    const newEvents = plan.events.filter((e) => e !== target);
+    this.savePlanForChild(childId, plan.metadata, newEvents, plan.house, plan.images);
+  }
+
   getPlansForChild(childId: string): SavedPlan[] {
     return this.plansMap()[childId] ?? [];
   }

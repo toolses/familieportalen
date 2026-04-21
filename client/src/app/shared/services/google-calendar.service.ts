@@ -37,6 +37,14 @@ export class GoogleCalendarService {
 
   readonly isConnected = computed(() => this.auth.hasGoogleToken());
 
+  readonly needsReconnect = computed(() =>
+    this.auth.isLoggedIn() &&
+    !this.auth.loading() &&
+    !!this.data.googleCalendarId() &&
+    !this.auth.hasGoogleToken() &&
+    this.calendars().length === 0
+  );
+
   readonly selectedCalendar = computed(() => {
     const id = this.selectedCalendarId();
     return this.calendars().find((c) => c.id === id) ?? null;
@@ -64,6 +72,11 @@ export class GoogleCalendarService {
     if (token) {
       await this.fetchCalendars();
     }
+  }
+
+  /** Re-connect after a new browser session where the Google token is lost */
+  async reconnectCalendar(): Promise<void> {
+    await this.fetchCalendars();
   }
 
   async fetchCalendars(): Promise<void> {

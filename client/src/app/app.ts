@@ -1,10 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { AuthService } from './shared/services/auth.service';
+import { SwipeDirective } from './shared/directives/swipe.directive';
+
+const TAB_ROUTES = ['/', '/kalender', '/skole', '/innstillinger'];
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, SwipeDirective],
   template: `
     <div class="min-h-screen bg-gray-50 flex flex-col">
       <!-- Header -->
@@ -23,7 +26,7 @@ import { AuthService } from './shared/services/auth.service';
       }
 
       <!-- Content -->
-      <main class="flex-1 max-w-2xl mx-auto w-full">
+      <main class="flex-1 max-w-2xl mx-auto w-full" appSwipe (swipeLeft)="swipeTab(1)" (swipeRight)="swipeTab(-1)">
         <router-outlet />
       </main>
 
@@ -72,6 +75,14 @@ import { AuthService } from './shared/services/auth.service';
 export class App {
   auth = inject(AuthService);
   private router = inject(Router);
+
+  swipeTab(direction: 1 | -1): void {
+    const url = this.router.url.split('?')[0];
+    const idx = TAB_ROUTES.indexOf(url);
+    if (idx === -1) return;
+    const next = TAB_ROUTES[idx + direction];
+    if (next) this.router.navigate([next]);
+  }
 
   async logout() {
     await this.auth.signOut();
