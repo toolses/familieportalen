@@ -1,4 +1,6 @@
-import { Injectable, signal, computed, inject, effect } from '@angular/core';
+﻿import { Injectable, signal, computed, inject, effect } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { AuthService } from './auth.service';
 import { SchoolDataService } from './school-data.service';
 
@@ -20,13 +22,16 @@ export interface GoogleCalendarEvent {
   allDay: boolean;
   spanStart: string | null;
   spanEnd: string | null;
+  /** Original start time (HH:MM) for multi-day timed events â€” set on every expanded entry. */
+  spanStartTime: string | null;
+  /** Original end time (HH:MM) for multi-day timed events â€” set on every expanded entry. */
+  spanEndTime: string | null;
   location: string;
 }
 
-const CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
-
 @Injectable({ providedIn: 'root' })
 export class GoogleCalendarService {
+  private http = inject(HttpClient);
   private auth = inject(AuthService);
   private data = inject(SchoolDataService);
 
@@ -34,82 +39,83 @@ export class GoogleCalendarService {
   readonly selectedCalendarId = signal<string | null>(null);
   readonly events = signal<GoogleCalendarEvent[]>([]);
   readonly loading = signal(false);
+  readonly connected = signal(false);
 
-  readonly isConnected = computed(() => this.auth.hasGoogleToken());
-
-  readonly needsReconnect = computed(() =>
-    this.auth.isLoggedIn() &&
-    !this.auth.loading() &&
-    !!this.data.googleCalendarId() &&
-    !this.auth.hasGoogleToken() &&
-    this.calendars().length === 0
-  );
+  readonly isConnected = computed(() => this.connected());
 
   readonly selectedCalendar = computed(() => {
     const id = this.selectedCalendarId();
     return this.calendars().find((c) => c.id === id) ?? null;
   });
 
+  // No longer needed â€” all users share the same backend token
+  readonly needsReconnect = computed(() => false);
+
   constructor() {
-    // Auto-connect calendar when token and saved calendar ID are both available.
-    // This covers page refresh (token restored from sessionStorage) and first login.
+    // Check backend connection status once user is logged in
     effect(() => {
-      const hasToken = this.auth.hasGoogleToken();
-      const calendarId = this.data.googleCalendarId();
-      if (hasToken && calendarId && this.calendars().length === 0 && !this.loading()) {
-        this.selectedCalendarId.set(calendarId);
-        this.fetchEvents(calendarId);
-      } else if (hasToken && !calendarId && this.calendars().length === 0 && !this.loading()) {
-        // No saved calendar yet — fetch calendar list so user can choose (or auto-pick primary)
-        this.fetchCalendars();
+      if (this.auth.isLoggedIn() && !this.auth.loading()) {
+        this.checkStatus();
       }
     });
   }
 
-  /** Call after login to load calendars */
+  /** Call after login to load calendars (kept for backward compat) */
   async initAfterLogin(): Promise<void> {
-    const token = this.auth.getGoogleAccessToken();
-    if (token) {
-      await this.fetchCalendars();
+    await this.checkStatus();
+  }
+
+  async checkStatus(): Promise<void> {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ connected: boolean }>('/api/auth/google/status')
+      );
+      this.connected.set(res.connected);
+      if (res.connected) {
+        const calendarId = this.data.googleCalendarId();
+        if (calendarId) {
+          this.selectedCalendarId.set(calendarId);
+          await this.fetchEvents(calendarId);
+        } else {
+          await this.fetchCalendars();
+        }
+      }
+    } catch {
+      this.connected.set(false);
     }
   }
 
-  /** Re-connect after a new browser session where the Google token is lost */
-  async reconnectCalendar(): Promise<void> {
-    await this.fetchCalendars();
+  /** Initiate OAuth flow â€” redirects to Google */
+  async startConnectFlow(): Promise<void> {
+    const res = await firstValueFrom(
+      this.http.get<{ url: string }>('/api/auth/google/url')
+    );
+    window.location.href = res.url;
+  }
+
+  /** Called from GoogleCallbackComponent after redirect */
+  async handleCallback(code: string): Promise<void> {
+    await firstValueFrom(
+      this.http.post('/api/auth/google/callback', { code })
+    );
+    this.connected.set(true);
   }
 
   async fetchCalendars(): Promise<void> {
-    const token = await this.getValidToken();
-    if (!token) return;
-
     try {
-      const res = await fetch(`${CALENDAR_API}/users/me/calendarList`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`Calendar API: ${res.status}`);
-
-      const data = await res.json();
-      const cals: GoogleCalendarInfo[] = (data.items ?? []).map((item: any) => ({
-        id: item.id,
-        summary: item.summary ?? '',
-        description: item.description ?? '',
-        primary: item.primary ?? false,
-        backgroundColor: item.backgroundColor ?? '#4285f4',
-      }));
-
+      const res = await firstValueFrom(
+        this.http.get<{ calendars: GoogleCalendarInfo[] }>('/api/calendar/list')
+      );
+      const cals = res.calendars ?? [];
       this.calendars.set(cals);
 
-      // Restore persisted selection or default to primary
       const persistedId = this.data.googleCalendarId();
       if (persistedId && cals.some((c) => c.id === persistedId)) {
         this.selectedCalendarId.set(persistedId);
         await this.fetchEvents(persistedId);
       } else {
         const primary = cals.find((c) => c.primary);
-        if (primary) {
-          await this.selectCalendar(primary.id);
-        }
+        if (primary) await this.selectCalendar(primary.id);
       }
     } catch (err) {
       console.error('Failed to fetch calendars:', err);
@@ -124,16 +130,12 @@ export class GoogleCalendarService {
   }
 
   async fetchEvents(calendarId: string, startDate?: Date, endDate?: Date): Promise<void> {
-    const token = await this.getValidToken();
-    if (!token) return;
-
     if (!startDate || !endDate) {
       const now = new Date();
       const dayOfWeek = now.getDay();
       const monday = new Date(now);
       monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
       monday.setHours(0, 0, 0, 0);
-
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
       sunday.setHours(23, 59, 59, 999);
@@ -143,26 +145,12 @@ export class GoogleCalendarService {
 
     this.loading.set(true);
     try {
-      const params = new URLSearchParams({
-        timeMin: startDate.toISOString(),
-        timeMax: endDate.toISOString(),
-        singleEvents: 'true',
-        orderBy: 'startTime',
-        maxResults: '250',
-      });
-
-      const res = await fetch(
-        `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const items = await firstValueFrom(
+        this.http.get<any[]>(`/api/calendar/events/${encodeURIComponent(calendarId)}`, {
+          params: { timeMin: startDate.toISOString(), timeMax: endDate.toISOString() },
+        })
       );
-      if (!res.ok) throw new Error(`Events API: ${res.status}`);
-
-      const data = await res.json();
-      const events: GoogleCalendarEvent[] = (data.items ?? []).flatMap((item: any) => {
-        return this.expandEvent(item);
-      });
-
-      this.events.set(events);
+      this.events.set((items ?? []).flatMap((item) => this.expandEvent(item)));
     } catch (err) {
       console.error('Failed to fetch events:', err);
       this.events.set([]);
@@ -180,12 +168,19 @@ export class GoogleCalendarService {
     await this.fetchEvents(calendarId, startDate, endDate);
   }
 
-  disconnect(): void {
+  async disconnect(): Promise<void> {
+    try {
+      await firstValueFrom(this.http.post('/api/auth/google/disconnect', {}));
+    } catch { /* ignore */ }
     this.calendars.set([]);
     this.selectedCalendarId.set(null);
     this.events.set([]);
+    this.connected.set(false);
     this.data.setGoogleCalendarId(null);
   }
+
+  /** No longer needed â€” kept for compat */
+  async reconnectCalendar(): Promise<void> {}
 
   private expandEvent(item: any): GoogleCalendarEvent[] {
     const isAllDay = !!item.start?.date;
@@ -193,7 +188,6 @@ export class GoogleCalendarService {
     const endStr = item.end?.dateTime ?? item.end?.date ?? '';
 
     if (isAllDay) {
-      // All-day events — Google uses exclusive end date, iterate via local Date
       const start = new Date(startStr);
       const end = new Date(endStr);
       const events: GoogleCalendarEvent[] = [];
@@ -211,6 +205,8 @@ export class GoogleCalendarService {
           allDay: true,
           spanStart,
           spanEnd,
+          spanStartTime: null,
+          spanEndTime: null,
           location: item.location ?? '',
         });
         current.setDate(current.getDate() + 1);
@@ -218,14 +214,11 @@ export class GoogleCalendarService {
       return events;
     }
 
-    // Timed events — extract date and time directly from the ISO string (e.g.
-    // "2026-04-20T17:00:00+02:00") to avoid UTC-conversion errors.
     const startDate = startStr.slice(0, 10);
     const startTime = startStr.slice(11, 16);
     const endDate = endStr.slice(0, 10);
     const endTime = endStr ? endStr.slice(11, 16) : null;
 
-    // Single-day timed event
     if (startDate === endDate) {
       return [{
         id: item.id,
@@ -237,12 +230,13 @@ export class GoogleCalendarService {
         allDay: false,
         spanStart: null,
         spanEnd: null,
+        spanStartTime: null,
+        spanEndTime: null,
         location: item.location ?? '',
       }];
     }
 
-    // Multi-day timed event (e.g. a trip) — expand across every day it spans.
-    // Parse as local midnight to avoid DST/timezone issues with getDate().
+    // Multi-day timed event â€” expand across every day
     const current = new Date(startDate + 'T00:00:00');
     const endLocal = new Date(endDate + 'T00:00:00');
     const events: GoogleCalendarEvent[] = [];
@@ -263,6 +257,8 @@ export class GoogleCalendarService {
         allDay: !isFirst,
         spanStart: startDate,
         spanEnd: endDate,
+        spanStartTime: startTime,
+        spanEndTime: endTime,
         location: item.location ?? '',
       });
       current.setDate(current.getDate() + 1);
@@ -270,13 +266,5 @@ export class GoogleCalendarService {
     }
     return events;
   }
-
-  private async getValidToken(): Promise<string | null> {
-    let token = this.auth.getGoogleAccessToken();
-    if (!token) {
-      // Try refreshing
-      token = await this.auth.refreshGoogleAccessToken();
-    }
-    return token;
-  }
 }
+

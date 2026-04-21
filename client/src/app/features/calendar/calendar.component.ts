@@ -282,11 +282,15 @@ export class CalendarComponent {
   }
 
   formatEventTimeLabel(event: GoogleCalendarEvent): string {
+    // Multi-day timed event: show full range "DD.MM HH:MM – DD.MM HH:MM"
+    if (event.spanStart && event.spanEnd && event.spanStart !== event.spanEnd && event.spanStartTime) {
+      const start = `${formatDateShort(event.spanStart)} ${event.spanStartTime}`;
+      const end = event.spanEndTime ? ` – ${formatDateShort(event.spanEnd)} ${event.spanEndTime}` : '';
+      return start + end;
+    }
+    // Single-day timed event
     if (event.startTime) {
       return `${event.startTime}${event.endTime ? ' – ' + event.endTime : ''}`;
-    }
-    if (event.spanStart && event.spanEnd && event.spanStart !== event.spanEnd) {
-      return `${formatDateShort(event.spanStart)} – ${formatDateShort(event.spanEnd)}`;
     }
     return 'Hele dagen';
   }

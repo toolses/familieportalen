@@ -1,13 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { AuthService } from './shared/services/auth.service';
-import { SwipeDirective } from './shared/directives/swipe.directive';
-
-const TAB_ROUTES = ['/', '/kalender', '/skole', '/innstillinger'];
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, SwipeDirective],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
     <div class="min-h-screen bg-gray-50 flex flex-col">
       <!-- Header -->
@@ -26,7 +23,7 @@ const TAB_ROUTES = ['/', '/kalender', '/skole', '/innstillinger'];
       }
 
       <!-- Content -->
-      <main class="flex-1 max-w-2xl mx-auto w-full" appSwipe (swipeLeft)="swipeTab(1)" (swipeRight)="swipeTab(-1)">
+      <main class="flex-1 max-w-2xl mx-auto w-full">
         <router-outlet />
       </main>
 
@@ -39,7 +36,7 @@ const TAB_ROUTES = ['/', '/kalender', '/skole', '/innstillinger'];
                [class.text-blue-600]="rla1.isActive" [class.border-blue-600]="rla1.isActive"
                [class.text-gray-400]="!rla1.isActive" [class.border-transparent]="!rla1.isActive">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              <span class="text-xs mt-1 font-medium">Dashboard</span>
+              <span class="text-xs mt-1 font-medium">Hjem</span>
             </a>
             <a #rla2="routerLinkActive" routerLink="/kalender" routerLinkActive
                class="flex-1 flex flex-col items-center py-2 transition-colors border-t-2"
@@ -75,14 +72,6 @@ const TAB_ROUTES = ['/', '/kalender', '/skole', '/innstillinger'];
 export class App {
   auth = inject(AuthService);
   private router = inject(Router);
-
-  swipeTab(direction: 1 | -1): void {
-    const url = this.router.url.split('?')[0];
-    const idx = TAB_ROUTES.indexOf(url);
-    if (idx === -1) return;
-    const next = TAB_ROUTES[idx + direction];
-    if (next) this.router.navigate([next]);
-  }
 
   async logout() {
     await this.auth.signOut();

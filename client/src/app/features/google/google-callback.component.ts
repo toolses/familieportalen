@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { GoogleCalendarService } from '../../shared/services/google-calendar.service';
 
 @Component({
   selector: 'app-google-callback',
@@ -17,15 +17,14 @@ import { HttpClient } from '@angular/common/http';
 export class GoogleCallbackComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  private http = inject(HttpClient);
+  private google = inject(GoogleCalendarService);
 
   ngOnInit(): void {
     const code = this.route.snapshot.queryParamMap.get('code');
     if (code) {
-      this.http.post<{ success: boolean }>('/api/auth/google/callback', { code }).subscribe({
-        next: () => this.router.navigate(['/innstillinger'], { queryParams: { google: 'connected' } }),
-        error: () => this.router.navigate(['/innstillinger'], { queryParams: { google: 'error' } }),
-      });
+      this.google.handleCallback(code)
+        .then(() => this.router.navigate(['/innstillinger'], { queryParams: { google: 'connected' } }))
+        .catch(() => this.router.navigate(['/innstillinger'], { queryParams: { google: 'error' } }));
     } else {
       this.router.navigate(['/innstillinger']);
     }

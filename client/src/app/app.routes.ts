@@ -4,10 +4,12 @@ import { CalendarComponent } from './features/calendar/calendar.component';
 import { SkoleComponent } from './features/skole/skole.component';
 import { SettingsComponent } from './features/settings/settings.component';
 import { LoginComponent } from './features/login/login.component';
+import { GoogleCallbackComponent } from './features/google/google-callback.component';
 import { authGuard } from './shared/guards/auth.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  { path: 'google-callback', component: GoogleCallbackComponent, canActivate: [authGuard] },
   { path: '', component: DashboardComponent, canActivate: [authGuard] },
   { path: 'kalender', component: CalendarComponent, canActivate: [authGuard] },
   { path: 'skole', component: SkoleComponent, canActivate: [authGuard] },

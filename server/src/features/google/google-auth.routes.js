@@ -1,18 +1,37 @@
 import { Router } from 'express';
 import { google } from 'googleapis';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
 const router = Router();
+
+const TOKENS_FILE = join(process.cwd(), '.google-tokens.json');
+
+function loadTokens() {
+  try {
+    if (existsSync(TOKENS_FILE)) return JSON.parse(readFileSync(TOKENS_FILE, 'utf8'));
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveTokens(tokens) {
+  try {
+    writeFileSync(TOKENS_FILE, JSON.stringify(tokens), 'utf8');
+  } catch (err) {
+    console.error('Failed to save Google tokens:', err.message);
+  }
+}
 
 function createOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4200/auth/google/callback'
+    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4200/google-callback'
   );
 }
 
-// In-memory token store. In production, use a database.
-let storedTokens = null;
+// In-memory cache loaded from file on startup
+let storedTokens = loadTokens();
 
 export async function getAuthenticatedClient() {
   if (!storedTokens) return null;
@@ -23,6 +42,7 @@ export async function getAuthenticatedClient() {
   client.on('tokens', (tokens) => {
     console.log('Google tokens refreshed, has refresh_token:', !!tokens.refresh_token);
     storedTokens = { ...storedTokens, ...tokens };
+    saveTokens(storedTokens);
   });
 
   // Proactively refresh if access token is expired or about to expire
@@ -71,6 +91,7 @@ router.post('/callback', async (req, res) => {
     const client = createOAuth2Client();
     const { tokens } = await client.getToken(code);
     storedTokens = tokens;
+    saveTokens(tokens);
     console.log('Google tokens stored. Has refresh_token:', !!tokens.refresh_token, 'Expiry:', tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : 'none');
     res.json({ success: true });
   } catch (err) {
@@ -87,6 +108,9 @@ router.get('/status', (_req, res) => {
 // POST /api/auth/google/disconnect — clear tokens
 router.post('/disconnect', (_req, res) => {
   storedTokens = null;
+  try {
+    writeFileSync(TOKENS_FILE, 'null', 'utf8');
+  } catch { /* ignore */ }
   res.json({ success: true });
 });
 

@@ -36,6 +36,14 @@ jobs:
         working-directory: functions
         run: npm ci
 
+      - name: Skriv funksjons-miljøvariabler
+        working-directory: functions
+        run: |
+          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+          echo "GOOGLE_REDIRECT_URI=https://familieportalen-11d5e.web.app/google-callback" >> .env
+
       - name: Deploy Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0.9.0
         with:
