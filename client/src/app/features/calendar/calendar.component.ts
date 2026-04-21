@@ -129,7 +129,7 @@ interface CalendarDay {
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     @if (event.description) {
-                      <p class="text-xs text-gray-500 mt-0.5">{{ event.description }}</p>
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
@@ -143,7 +143,7 @@ interface CalendarDay {
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     @if (event.description) {
-                      <p class="text-xs text-gray-500 mt-0.5">{{ event.description }}</p>
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
@@ -167,7 +167,7 @@ interface CalendarDay {
                   </div>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
                   @if (event.description) {
-                    <p class="text-xs text-gray-500 mt-0.5">{{ event.description }}</p>
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                   }
                   @if (event.location) {
                     <p class="text-xs text-gray-400">{{ event.location }}</p>

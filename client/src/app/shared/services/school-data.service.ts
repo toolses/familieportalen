@@ -32,6 +32,7 @@ export class SchoolDataService {
   readonly residencyOverrides = signal<ResidencyOverrides>({});
   readonly activeWeek = signal<{ uke: number; aar: number } | null>(null);
   readonly googleCalendarId = signal<string | null>(null);
+  readonly sharedConfigLoaded = signal(false);
 
   readonly activeChild = computed(() => {
     const id = this.activeChildId();
@@ -310,11 +311,15 @@ export class SchoolDataService {
   private subscribeToSharedConfig(): void {
     this.unsubSharedConfig?.();
     this.unsubSharedConfig = onSnapshot(doc(this.db, 'config', 'shared'), (snap) => {
-      if (!snap.exists()) return;
+      if (!snap.exists()) {
+        this.sharedConfigLoaded.set(true);
+        return;
+      }
       const data = snap.data() as { googleCalendarId?: string | null };
       if (data.googleCalendarId !== undefined) {
         this.googleCalendarId.set(data.googleCalendarId);
       }
+      this.sharedConfigLoaded.set(true);
     });
   }
 }

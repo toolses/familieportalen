@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { ResidencyService } from '../../shared/services/residency.service';
 import { GoogleCalendarService, GoogleCalendarEvent } from '../../shared/services/google-calendar.service';
@@ -22,7 +22,7 @@ interface ChildUkelekser {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [SwipeDirective],
+  imports: [SwipeDirective, RouterLink],
   template: `
     @if (data.children().length === 0) {
       <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -78,6 +78,19 @@ interface ChildUkelekser {
             </svg>
           </button>
         </div>
+
+        <!-- Byttedag-varsel -->
+        @if (isSwitchDayTomorrow()) {
+          <a routerLink="/lister/bytte-hus"
+             class="flex items-center gap-3 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-2xl p-4 shadow-lg shadow-purple-200 active:scale-[0.98] transition-all">
+            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0 text-xl">🔄</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-white text-sm">Byttedag i morgen!</p>
+              <p class="text-purple-100 text-xs mt-0.5">Sjekk pakkelisten</p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="opacity-80 shrink-0"><polyline points="9 18 15 12 9 6"/></svg>
+          </a>
+        }
 
         <!-- Quick override panel -->
         @if (showOverridePanel()) {
@@ -136,7 +149,7 @@ interface ChildUkelekser {
                     <div class="flex-1 min-w-0">
                       <span class="font-semibold text-gray-800 text-sm">{{ event.title }}</span>
                       @if (event.description) {
-                        <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
+                        <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                       }
                       <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                     </div>
@@ -196,7 +209,7 @@ interface ChildUkelekser {
                     <div class="flex-1 min-w-0">
                       <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                       @if (event.description) {
-                        <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
+                        <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                       }
                       <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                     </div>
@@ -220,7 +233,7 @@ interface ChildUkelekser {
                     <div class="flex-1 min-w-0">
                       <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                       @if (event.description) {
-                        <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
+                        <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                       }
                       <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                     </div>
@@ -244,7 +257,7 @@ interface ChildUkelekser {
                     <div class="flex-1 min-w-0">
                       <span class="text-sm text-gray-500">{{ event.title }}</span>
                       @if (event.description) {
-                        <p class="text-xs text-gray-400 mt-0.5">{{ event.description }}</p>
+                        <p class="text-xs text-gray-400 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                       }
                       <p class="text-[10px] font-semibold mt-0.5" [style.color]="event.childColor">{{ event.childName }}</p>
                     </div>
@@ -278,7 +291,7 @@ interface ChildUkelekser {
                       <div class="flex-1 min-w-0">
                         <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                         @if (event.description) {
-                          <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
+                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                         }
                       </div>
                     </div>
@@ -442,6 +455,18 @@ export class DashboardComponent {
   isUkelekse(event: SchoolEvent): boolean {
     return event.title.toLowerCase().startsWith('ukelekse');
   }
+
+  /** True if today's residency differs from tomorrow's — i.e. a handover happens tonight. */
+  readonly isSwitchDayTomorrow = computed(() => {
+    const today = this.todayIso;
+    const d = new Date(today + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    const tomorrow =
+      d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const todayResidency = this.residency.residencyForDate(today);
+    const tomorrowResidency = this.residency.residencyForDate(tomorrow);
+    return todayResidency !== null && tomorrowResidency !== null && todayResidency !== tomorrowResidency;
+  });
 
   goToSkole() { this.router.navigate(['/skole']); }
   goToSettings() { this.router.navigate(['/innstillinger']); }

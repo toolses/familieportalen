@@ -7,6 +7,8 @@ import { Child } from '../school-plan/models/school-plan.models';
 
 const PRESET_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
 
+type ConfirmMode = 'delete-child' | 'clear-all';
+
 @Component({
   selector: 'app-settings',
   standalone: true,
@@ -138,7 +140,7 @@ const PRESET_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#
         <p class="text-sm text-gray-500">
           {{ data.children().length }} barn registrert.
         </p>
-        <button (click)="clearAllData()"
+        <button (click)="openConfirm('clear-all')"
                 class="text-sm text-red-600 font-medium">
           Slett all data
         </button>
@@ -200,7 +202,7 @@ const PRESET_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#
               {{ editingChild() ? 'Lagre endringer' : 'Legg til' }}
             </button>
             @if (editingChild()) {
-              <button (click)="deleteChild()"
+              <button (click)="openConfirm('delete-child')"
                       class="w-full py-3 rounded-xl font-medium text-sm text-red-600 bg-red-50 active:scale-[0.98] transition-all">
                 Fjern {{ editingChild()!.name }}
               </button>
@@ -210,6 +212,81 @@ const PRESET_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#
               Avbryt
             </button>
           </div>
+        </div>
+      </div>
+    }
+
+    <!-- Confirmation sheet -->
+    @if (confirmMode()) {
+      <div class="fixed inset-0 z-[60] flex flex-col justify-end">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" (click)="closeConfirm()"></div>
+        <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 safe-bottom shadow-2xl space-y-4 modal-sheet">
+          <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1"></div>
+
+          @if (confirmMode() === 'delete-child') {
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                   [style.background]="editingChild()!.color">
+                {{ editingChild()!.name.charAt(0).toUpperCase() }}
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-gray-900">Fjern {{ editingChild()!.name }}?</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Alle ukeplaner for dette barnet slettes.</p>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                Skriv inn <span class="font-bold text-gray-700">{{ editingChild()!.name }}</span> for å bekrefte
+              </label>
+              <input [(ngModel)]="confirmInput"
+                     [placeholder]="editingChild()!.name"
+                     autocomplete="off"
+                     class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+            </div>
+            <div class="space-y-2">
+              <button (click)="executeConfirm()"
+                      [disabled]="confirmInput.trim().toLowerCase() !== editingChild()!.name.toLowerCase()"
+                      class="w-full bg-red-600 text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-35 active:scale-[0.98] transition-all">
+                Fjern {{ editingChild()!.name }} permanent
+              </button>
+              <button (click)="closeConfirm()"
+                      class="w-full py-3 rounded-xl font-medium text-sm text-gray-500 active:scale-[0.98] transition-all">
+                Avbryt
+              </button>
+            </div>
+          }
+
+          @if (confirmMode() === 'clear-all') {
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-600"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-gray-900">Slett all data?</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Alle barn, ukeplaner og innstillinger fjernes.</p>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1.5">
+                Skriv <span class="font-bold text-gray-700">SLETT</span> for å bekrefte
+              </label>
+              <input [(ngModel)]="confirmInput"
+                     placeholder="SLETT"
+                     autocomplete="off"
+                     class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+            </div>
+            <div class="space-y-2">
+              <button (click)="executeConfirm()"
+                      [disabled]="confirmInput.trim() !== 'SLETT'"
+                      class="w-full bg-red-600 text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-35 active:scale-[0.98] transition-all">
+                Slett all data permanent
+              </button>
+              <button (click)="closeConfirm()"
+                      class="w-full py-3 rounded-xl font-medium text-sm text-gray-500 active:scale-[0.98] transition-all">
+                Avbryt
+              </button>
+            </div>
+          }
         </div>
       </div>
     }
@@ -237,6 +314,9 @@ export class SettingsComponent {
   modalName = '';
   modalGrade = '';
   modalColor = PRESET_COLORS[0];
+
+  confirmMode = signal<ConfirmMode | null>(null);
+  confirmInput = '';
 
   openAdd() {
     this.editingChild.set(null);
@@ -275,9 +355,30 @@ export class SettingsComponent {
   deleteChild() {
     const child = this.editingChild();
     if (!child) return;
-    if (confirm('Fjerne ' + child.name + ' og alle tilhørende data?')) {
-      this.data.removeChild(child.id);
-      this.closeModal();
+    this.data.removeChild(child.id);
+    this.closeConfirm();
+    this.closeModal();
+  }
+
+  openConfirm(mode: ConfirmMode) {
+    this.confirmInput = '';
+    this.confirmMode.set(mode);
+  }
+
+  closeConfirm() {
+    this.confirmMode.set(null);
+    this.confirmInput = '';
+  }
+
+  async executeConfirm() {
+    const mode = this.confirmMode();
+    if (mode === 'delete-child') {
+      this.deleteChild();
+    } else if (mode === 'clear-all') {
+      if (this.confirmInput.trim() !== 'SLETT') return;
+      await this.data.clearAllData();
+      this.google.disconnect();
+      location.reload();
     }
   }
 
@@ -304,11 +405,7 @@ export class SettingsComponent {
   }
 
   async clearAllData() {
-    if (confirm('Er du sikker? Alle lagrede data slettes.')) {
-      await this.data.clearAllData();
-      this.google.disconnect();
-      location.reload();
-    }
+    this.openConfirm('clear-all');
   }
 
   private flashSaved() {

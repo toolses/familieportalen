@@ -54,7 +54,7 @@ export class GoogleCalendarService {
   constructor() {
     // Check backend connection status once user is logged in
     effect(() => {
-      if (this.auth.isLoggedIn() && !this.auth.loading()) {
+      if (this.auth.isLoggedIn() && !this.auth.loading() && this.data.sharedConfigLoaded()) {
         this.checkStatus();
       }
     });
@@ -114,8 +114,13 @@ export class GoogleCalendarService {
         this.selectedCalendarId.set(persistedId);
         await this.fetchEvents(persistedId);
       } else {
+        // No saved preference — show primary locally but do NOT persist it;
+        // the user must explicitly select a calendar to save a preference.
         const primary = cals.find((c) => c.primary);
-        if (primary) await this.selectCalendar(primary.id);
+        if (primary) {
+          this.selectedCalendarId.set(primary.id);
+          await this.fetchEvents(primary.id);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch calendars:', err);

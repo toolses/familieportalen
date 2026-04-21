@@ -112,7 +112,7 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                       <div class="flex-1 min-w-0">
                         <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                         @if (event.description) {
-                          <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
+                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                         }
                       </div>
                       <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0 mt-0.5">Informasjon</span>
@@ -138,7 +138,7 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                       <div class="flex-1 min-w-0">
                         <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                         @if (event.description) {
-                          <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
+                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                         }
                       </div>
                       <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0 mt-0.5">Påminnelse</span>
@@ -169,7 +169,7 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                       <div class="flex-1 min-w-0">
                         <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                         @if (event.description) {
-                          <p class="text-sm text-gray-500 mt-0.5">{{ event.description }}</p>
+                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                         }
                       </div>
                       <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0 mt-0.5">Lekse</span>
