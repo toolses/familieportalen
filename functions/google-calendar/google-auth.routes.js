@@ -48,12 +48,14 @@ const router = Router();
 
 // GET /api/auth/google/url
 router.get('/url', (_req, res) => {
+  console.log('Google OAuth config — client_id:', process.env.GOOGLE_CLIENT_ID?.slice(0, 20), 'redirect_uri:', process.env.GOOGLE_REDIRECT_URI);
   const client = createOAuth2Client();
   const url = client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: ['https://www.googleapis.com/auth/calendar.readonly'],
   });
+  console.log('Generated OAuth URL redirect_uri segment:', new URL(url).searchParams.get('redirect_uri'));
   res.json({ url });
 });
 
