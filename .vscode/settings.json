@@ -3,6 +3,7 @@
         "mkdir": true,
         "npm install": true,
         "npx @angular/cli@latest": true,
-        "npx ng": true
+        "npx ng": true,
+        "npx tsc": true
     }
 }
