@@ -51,29 +51,18 @@ type CaptureStep = 'idle' | 'front' | 'back' | 'processing';
         <div class="flex-1 relative">
 
           @if (cameraActive()) {
-            <!-- Live camera feed -->
+            <!-- Live camera feed — full view, no crop overlay -->
             <video #videoEl autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
 
-            <!-- Viewfinder overlay -->
-            <div class="absolute inset-0 flex items-center justify-center">
-              <div class="absolute inset-0 bg-black/40"></div>
-              <div class="relative w-64 h-80 z-10">
-                <div class="absolute inset-0 rounded-2xl" style="box-shadow: 0 0 0 9999px rgba(0,0,0,0.4)"></div>
-                <div class="absolute inset-0 rounded-2xl border-2 border-blue-400/60"></div>
-                <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-blue-500 rounded-tl-2xl"></div>
-                <div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-blue-500 rounded-tr-2xl"></div>
-                <div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-blue-500 rounded-bl-2xl"></div>
-                <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-blue-500 rounded-br-2xl"></div>
-              </div>
-            </div>
-
             <!-- Step indicator -->
-            <div class="absolute bottom-28 left-0 right-0 text-center z-20">
-              @if (step() === 'front') {
-                <p class="text-white text-sm font-medium drop-shadow-lg">Ta bilde av ukeplanen</p>
-              } @else {
-                <p class="text-white text-sm font-medium drop-shadow-lg">Ta bilde av timeplanen</p>
-              }
+            <div class="absolute top-4 left-0 right-0 text-center z-20">
+              <div class="inline-block bg-black/50 backdrop-blur-sm rounded-full px-4 py-1">
+                @if (step() === 'front') {
+                  <p class="text-white text-sm font-medium">📄 Legg dokumentet flatt og ta bilde</p>
+                } @else {
+                  <p class="text-white text-sm font-medium">📄 Ta bilde av timeplanen</p>
+                }
+              </div>
             </div>
 
             <!-- Thumbnails overlay (top) -->
@@ -101,7 +90,7 @@ type CaptureStep = 'idle' | 'front' | 'back' | 'processing';
             }
 
             <!-- Camera controls bar -->
-            <div class="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-8 py-5 bg-black/60 z-20">
+            <div class="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-8 py-5 z-20" style="background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)">
               <button (click)="triggerFileInput()" class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors" aria-label="Velg fra galleri">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5a2.25 2.25 0 0 0 2.25-2.25V5.25a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
@@ -249,8 +238,19 @@ export class ImageCaptureComponent implements OnDestroy {
     try {
       this.cameraError.set(null);
       this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 4096 },
+          height: { ideal: 3072 },
+        },
       });
+      // Request continuous autofocus for sharp document capture (best-effort)
+      const track = this.stream.getVideoTracks()[0];
+      if (track) {
+        try {
+          await (track as any).applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+        } catch { /* not supported on all browsers */ }
+      }
       this.cameraActive.set(true);
       if (this.step() === 'idle') this.step.set('front');
       setTimeout(() => {
@@ -284,7 +284,7 @@ export class ImageCaptureComponent implements OnDestroy {
     canvas.height = video.videoHeight;
     canvas.getContext('2d')!.drawImage(video, 0, 0);
 
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     const base64 = dataUrl.split(',')[1];
 
     if (this.step() === 'front') {

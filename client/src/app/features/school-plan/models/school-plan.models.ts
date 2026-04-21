@@ -57,5 +57,4 @@ export interface FamilyState {
   plans: { [childId: string]: SavedPlan[] };
   baseRotation: BaseRotation | null;
   residencyOverrides: ResidencyOverrides;
-  googleCalendarId?: string | null;
 }

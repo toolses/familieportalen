@@ -21,6 +21,7 @@ export class SchoolDataService {
   private destroyRef = inject(DestroyRef);
   private db = getFirestore();
   private unsubFirestore: Unsubscribe | null = null;
+  private unsubSharedConfig: Unsubscribe | null = null;
 
   // ── Family state ──────────────────────────────────────────
   readonly children = signal<Child[]>([]);
@@ -66,12 +67,14 @@ export class SchoolDataService {
         clearInterval(checkAuth);
         if (this.auth.isLoggedIn()) {
           this.subscribeToFirestore();
+          this.subscribeToSharedConfig();
         }
       }
     }, 100);
 
     this.destroyRef.onDestroy(() => {
       this.unsubFirestore?.();
+      this.unsubSharedConfig?.();
     });
   }
 
@@ -90,6 +93,13 @@ export class SchoolDataService {
     }
     this.persist();
     return child;
+  }
+
+  updateChild(id: string, name: string, grade: string, color: string): void {
+    this.children.update((c) =>
+      c.map((child) => (child.id === id ? { ...child, name, grade, color } : child))
+    );
+    this.persist();
   }
 
   removeChild(id: string): void {
@@ -187,7 +197,10 @@ export class SchoolDataService {
 
   setGoogleCalendarId(id: string | null): void {
     this.googleCalendarId.set(id);
-    this.persist();
+    const data = JSON.parse(JSON.stringify({ googleCalendarId: id ?? null }));
+    setDoc(doc(this.db, 'config', 'shared'), data, { merge: true }).catch((err) =>
+      console.error('Firestore shared config write failed:', err)
+    );
   }
 
   // ── Clear all data ──────────────────────────────────────────
@@ -201,6 +214,7 @@ export class SchoolDataService {
     this.residencyOverrides.set({});
     this.activeWeek.set(null);
     this.googleCalendarId.set(null);
+    setDoc(doc(this.db, 'config', 'shared'), { googleCalendarId: null }, { merge: true }).catch(() => {});
     await this.persistToFirestore();
   }
 
@@ -214,7 +228,6 @@ export class SchoolDataService {
       plans: this.plansMap(),
       baseRotation: this.baseRotation(),
       residencyOverrides: this.residencyOverrides(),
-      googleCalendarId: this.googleCalendarId() ?? null,
     };
   }
 
@@ -260,8 +273,16 @@ export class SchoolDataService {
     if (state.activeWeek) {
       this.activeWeek.set(state.activeWeek);
     }
-    if (state.googleCalendarId !== undefined) {
-      this.googleCalendarId.set(state.googleCalendarId);
-    }
+  }
+
+  private subscribeToSharedConfig(): void {
+    this.unsubSharedConfig?.();
+    this.unsubSharedConfig = onSnapshot(doc(this.db, 'config', 'shared'), (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() as { googleCalendarId?: string | null };
+      if (data.googleCalendarId !== undefined) {
+        this.googleCalendarId.set(data.googleCalendarId);
+      }
+    });
   }
 }

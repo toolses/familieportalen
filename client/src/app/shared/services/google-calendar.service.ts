@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject, effect } from '@angular/core';
 import { AuthService } from './auth.service';
 import { SchoolDataService } from './school-data.service';
 
@@ -35,14 +35,28 @@ export class GoogleCalendarService {
   readonly events = signal<GoogleCalendarEvent[]>([]);
   readonly loading = signal(false);
 
-  readonly isConnected = computed(() => !!this.auth.getGoogleAccessToken());
+  readonly isConnected = computed(() => this.auth.hasGoogleToken());
 
   readonly selectedCalendar = computed(() => {
     const id = this.selectedCalendarId();
     return this.calendars().find((c) => c.id === id) ?? null;
   });
 
-  constructor() {}
+  constructor() {
+    // Auto-connect calendar when token and saved calendar ID are both available.
+    // This covers page refresh (token restored from sessionStorage) and first login.
+    effect(() => {
+      const hasToken = this.auth.hasGoogleToken();
+      const calendarId = this.data.googleCalendarId();
+      if (hasToken && calendarId && this.calendars().length === 0 && !this.loading()) {
+        this.selectedCalendarId.set(calendarId);
+        this.fetchEvents(calendarId);
+      } else if (hasToken && !calendarId && this.calendars().length === 0 && !this.loading()) {
+        // No saved calendar yet — fetch calendar list so user can choose (or auto-pick primary)
+        this.fetchCalendars();
+      }
+    });
+  }
 
   /** Call after login to load calendars */
   async initAfterLogin(): Promise<void> {
@@ -166,11 +180,13 @@ export class GoogleCalendarService {
     const endStr = item.end?.dateTime ?? item.end?.date ?? '';
 
     if (isAllDay) {
-      // Multi-day all-day events: expand to one entry per day
+      // All-day events — Google uses exclusive end date, iterate via local Date
       const start = new Date(startStr);
       const end = new Date(endStr);
       const events: GoogleCalendarEvent[] = [];
       const current = new Date(start);
+      const spanStart = startStr.slice(0, 10);
+      const spanEnd = new Date(end.getTime() - 86400000).toISOString().slice(0, 10);
       while (current < end) {
         events.push({
           id: item.id,
@@ -180,8 +196,8 @@ export class GoogleCalendarService {
           startTime: null,
           endTime: null,
           allDay: true,
-          spanStart: start.toISOString().slice(0, 10),
-          spanEnd: new Date(end.getTime() - 86400000).toISOString().slice(0, 10),
+          spanStart,
+          spanEnd,
           location: item.location ?? '',
         });
         current.setDate(current.getDate() + 1);
@@ -189,19 +205,57 @@ export class GoogleCalendarService {
       return events;
     }
 
-    const startDT = new Date(startStr);
-    return [{
-      id: item.id,
-      summary: item.summary ?? '',
-      description: item.description ?? '',
-      date: startDT.toISOString().slice(0, 10),
-      startTime: startDT.toTimeString().slice(0, 5),
-      endTime: endStr ? new Date(endStr).toTimeString().slice(0, 5) : null,
-      allDay: false,
-      spanStart: null,
-      spanEnd: null,
-      location: item.location ?? '',
-    }];
+    // Timed events — extract date and time directly from the ISO string (e.g.
+    // "2026-04-20T17:00:00+02:00") to avoid UTC-conversion errors.
+    const startDate = startStr.slice(0, 10);
+    const startTime = startStr.slice(11, 16);
+    const endDate = endStr.slice(0, 10);
+    const endTime = endStr ? endStr.slice(11, 16) : null;
+
+    // Single-day timed event
+    if (startDate === endDate) {
+      return [{
+        id: item.id,
+        summary: item.summary ?? '',
+        description: item.description ?? '',
+        date: startDate,
+        startTime,
+        endTime,
+        allDay: false,
+        spanStart: null,
+        spanEnd: null,
+        location: item.location ?? '',
+      }];
+    }
+
+    // Multi-day timed event (e.g. a trip) — expand across every day it spans.
+    // Parse as local midnight to avoid DST/timezone issues with getDate().
+    const current = new Date(startDate + 'T00:00:00');
+    const endLocal = new Date(endDate + 'T00:00:00');
+    const events: GoogleCalendarEvent[] = [];
+    let isFirst = true;
+    while (current <= endLocal) {
+      const y = current.getFullYear();
+      const m = String(current.getMonth() + 1).padStart(2, '0');
+      const d = String(current.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      const isLast = dateStr === endDate;
+      events.push({
+        id: item.id,
+        summary: item.summary ?? '',
+        description: item.description ?? '',
+        date: dateStr,
+        startTime: isFirst ? startTime : null,
+        endTime: isLast ? endTime : null,
+        allDay: !isFirst,
+        spanStart: startDate,
+        spanEnd: endDate,
+        location: item.location ?? '',
+      });
+      current.setDate(current.getDate() + 1);
+      isFirst = false;
+    }
+    return events;
   }
 
   private async getValidToken(): Promise<string | null> {

@@ -14,6 +14,8 @@ import { environment } from '../../../environments/environment';
 const firebaseApp = initializeApp(environment.firebase);
 const auth = getAuth(firebaseApp);
 
+const GOOGLE_TOKEN_KEY = 'fp_google_token';
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   readonly user = signal<User | null>(null);
@@ -23,11 +25,20 @@ export class AuthService {
   readonly photoURL = computed(() => this.user()?.photoURL ?? null);
 
   private googleAccessToken = signal<string | null>(null);
+  readonly hasGoogleToken = computed(() => !!this.googleAccessToken());
 
   constructor() {
     onAuthStateChanged(auth, (user) => {
       this.user.set(user);
       this.loading.set(false);
+      if (user) {
+        // Restore token from sessionStorage after page refresh
+        const stored = sessionStorage.getItem(GOOGLE_TOKEN_KEY);
+        if (stored) this.googleAccessToken.set(stored);
+      } else {
+        this.googleAccessToken.set(null);
+        sessionStorage.removeItem(GOOGLE_TOKEN_KEY);
+      }
     });
   }
 
@@ -39,12 +50,14 @@ export class AuthService {
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (credential?.accessToken) {
       this.googleAccessToken.set(credential.accessToken);
+      sessionStorage.setItem(GOOGLE_TOKEN_KEY, credential.accessToken);
     }
   }
 
   async signOut(): Promise<void> {
     await firebaseSignOut(auth);
     this.googleAccessToken.set(null);
+    sessionStorage.removeItem(GOOGLE_TOKEN_KEY);
   }
 
   async getIdToken(): Promise<string | null> {
@@ -66,6 +79,7 @@ export class AuthService {
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (credential?.accessToken) {
       this.googleAccessToken.set(credential.accessToken);
+      sessionStorage.setItem(GOOGLE_TOKEN_KEY, credential.accessToken);
       return credential.accessToken;
     }
     return null;
