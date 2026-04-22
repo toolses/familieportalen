@@ -4,6 +4,8 @@ import { SchoolDataService } from '../../shared/services/school-data.service';
 import { GoogleCalendarService } from '../../shared/services/google-calendar.service';
 import { ResidencyPlannerComponent } from './residency-planner.component';
 import { Child } from '../school-plan/models/school-plan.models';
+import { NotificationService } from '../../shared/services/notification.service';
+import { AuthService } from '../../shared/services/auth.service';
 
 const PRESET_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
 
@@ -17,7 +19,8 @@ type ConfirmMode = 'delete-child' | 'clear-all';
     <div class="px-4 pt-4 pb-8 space-y-6">
       <h2 class="text-xl font-bold text-gray-800">Innstillinger</h2>
 
-      <!-- Google Calendar -->
+      <!-- Google Calendar (kun admin) -->
+      @if (auth.isAdmin()) {
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3">
         <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Google Kalender</h3>
 
@@ -66,6 +69,48 @@ type ConfirmMode = 'delete-child' | 'clear-all';
           }
         }
       </div>
+      }
+
+      <!-- Push-varsler -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+        <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Push-varsler</h3>
+
+        @if (!notifications.isSupported()) {
+          <p class="text-sm text-gray-400">Push-varsler støttes ikke av denne nettleseren.</p>
+        } @else if (!notifications.isStandalone()) {
+          <!-- iOS: må installeres som PWA for å få push-varsler -->
+          <div class="flex gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500 mt-0.5 shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+            <div class="space-y-1">
+              <p class="text-sm font-medium text-amber-800">Installer appen først</p>
+              <p class="text-xs text-amber-700">For å aktivere push-varsler på iOS må du legge til appen på hjemskjermen. Trykk på <strong>Del</strong>-ikonet i Safari og velg <strong>«Legg til på hjemskjerm»</strong>.</p>
+            </div>
+          </div>
+        } @else if (notifications.permissionState() === 'granted') {
+          <div class="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-xl px-3 py-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Push-varsler er aktivert på denne enheten
+          </div>
+        } @else if (notifications.permissionState() === 'denied') {
+          <div class="flex gap-3 p-3 bg-red-50 rounded-xl border border-red-200">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500 mt-0.5 shrink-0"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+            <p class="text-sm text-red-700">Varsler er blokkert. Gå til nettleserinnstillingene for å tillate varsler fra denne siden.</p>
+          </div>
+        } @else {
+          <p class="text-sm text-gray-500">Få beskjed om byttedager og viktige hendelser direkte på telefonen.</p>
+          <button (click)="enablePushNotifications()"
+                  [disabled]="pushLoading()"
+                  class="flex items-center gap-2 w-full justify-center py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:scale-[0.98] transition-all hover:bg-gray-50 disabled:opacity-40">
+            @if (pushLoading()) {
+              <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              Aktiverer...
+            } @else {
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              Aktiver Push-varsler
+            }
+          </button>
+        }
+      </div>
 
       <!-- Samvaersplan -->
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
@@ -101,7 +146,8 @@ type ConfirmMode = 'delete-child' | 'clear-all';
         }
       </div>
 
-      <!-- Barn-administrasjon -->
+      <!-- Barn-administrasjon (kun admin) -->
+      @if (auth.isAdmin()) {
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Barn</h3>
@@ -134,7 +180,10 @@ type ConfirmMode = 'delete-child' | 'clear-all';
         }
       </div>
 
-      <!-- Data management -->
+      }
+
+      <!-- Data management (kun admin) -->
+      @if (auth.isAdmin()) {
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3">
         <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Data</h3>
         <p class="text-sm text-gray-500">
@@ -145,6 +194,7 @@ type ConfirmMode = 'delete-child' | 'clear-all';
           Slett all data
         </button>
       </div>
+      }
 
       @if (saved()) {
         <div class="p-3 bg-green-100 text-green-800 rounded-xl text-sm text-center font-medium">
@@ -304,10 +354,13 @@ type ConfirmMode = 'delete-child' | 'clear-all';
 export class SettingsComponent {
   data = inject(SchoolDataService);
   google = inject(GoogleCalendarService);
+  notifications = inject(NotificationService);
+  auth = inject(AuthService);
 
   presetColors = PRESET_COLORS;
   saved = signal(false);
   googleConnectError = signal<string | null>(null);
+  pushLoading = signal(false);
 
   modalOpen = signal(false);
   editingChild = signal<Child | null>(null);
@@ -402,6 +455,15 @@ export class SettingsComponent {
 
   disconnectCalendar() {
     this.google.disconnect();
+  }
+
+  async enablePushNotifications() {
+    this.pushLoading.set(true);
+    try {
+      await this.notifications.requestPermission();
+    } finally {
+      this.pushLoading.set(false);
+    }
   }
 
   async clearAllData() {

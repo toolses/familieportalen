@@ -14,11 +14,14 @@ import { environment } from '../../../environments/environment';
 const firebaseApp = initializeApp(environment.firebase);
 const auth = getAuth(firebaseApp);
 
+const ADMIN_UIDS = new Set(['Ou7ByiLJlcRUqYGSkiMDGzrYyJQ2']);
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   readonly user = signal<User | null>(null);
   readonly loading = signal(true);
   readonly isLoggedIn = computed(() => !!this.user());
+  readonly isAdmin = computed(() => ADMIN_UIDS.has(this.user()?.uid ?? ''));
   readonly displayName = computed(() => this.user()?.displayName ?? null);
   readonly photoURL = computed(() => this.user()?.photoURL ?? null);
 

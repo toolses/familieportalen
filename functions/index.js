@@ -39,6 +39,7 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/school-plan', verifyFirebaseToken);
 app.use('/api/auth/google', verifyFirebaseToken);
 app.use('/api/calendar', verifyFirebaseToken);
+app.use('/api/notifications', verifyFirebaseToken);
 
 // Dynamically import school plan service
 const { schoolPlanRouter } = await import('./school-plan/school-plan.routes.js');
@@ -49,6 +50,9 @@ app.use('/api/auth/google', googleAuthRouter);
 
 const { googleCalendarRouter } = await import('./google-calendar/google-calendar.routes.js');
 app.use('/api/calendar', googleCalendarRouter);
+
+const { notificationsRouter } = await import('./notifications/notifications.routes.js');
+app.use('/api/notifications', notificationsRouter);
 
 // Error handlers
 app.use((err, req, res, next) => {
