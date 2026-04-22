@@ -51,3 +51,21 @@ Two variants — identical feature code, different infrastructure:
 - `client/src/app/shared/services/school-data.service.ts` — Central state store (Firestore sync)
 - `client/src/app/shared/services/auth.service.ts` — Firebase Auth wrapper
 - `client/src/app/shared/interceptors/auth.interceptor.ts` — Attaches Firebase ID token to `/api/` requests
+
+## Testing
+
+### Unit tests (Vitest + @analogjs/vite-plugin-angular)
+- Run: `npm test` (inside `client/`)
+- Watch mode: `npm run test:watch`
+- Coverage: `npm run test:coverage`
+- Config: `client/vitest.config.ts`, setup: `client/src/test-setup.ts`
+- Pure utility functions and services with no Angular DI: instantiate directly (`new ServiceClass()`)
+- Firebase mocking: use `vi.mock('firebase/app')` and `vi.mock('firebase/auth')` at top of spec file
+- For Angular components/services that need DI: use `setupTestBed` from `@analogjs/vitest-angular/setup-testbed` inside the test file (not in global setup)
+
+### E2e tests (Playwright)
+- Run: `npm run e2e` (requires `ng serve` running, or set `CI=1` to auto-start)
+- UI mode: `npm run e2e:ui`
+- Config: `client/playwright.config.ts`
+- Tests: `client/e2e/`
+- Only tests unauthenticated routes without auth mocking (login page, redirects)

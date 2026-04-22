@@ -6,6 +6,8 @@
         "npx ng": true,
         "npx tsc": true,
         "npx --yes sharp-cli": true,
-        "npx sharp-cli": true
+        "npx sharp-cli": true,
+        "ConvertFrom-Json": true,
+        "npx vitest": true
     }
 }
