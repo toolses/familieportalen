@@ -10,8 +10,9 @@ html, body {
 }
 
 body {
-  /* Matcher splash-gradienten – forhindrer hvit stripe ved oppstart */
-  background-color: #4f46e5;
+  /* Hvit bakgrunn matcher navbar/innholdsflater – forhindrer at lilla skinner
+     gjennom safe-area nederst på iOS PWA. Splash har sin egen gradient. */
+  background-color: #ffffff;
   /* Fjerner grå tap-highlight på iOS */
   -webkit-tap-highlight-color: transparent;
   /* Skarpere font-rendering */
