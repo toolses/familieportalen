@@ -91,7 +91,7 @@ interface CalendarDay {
       <!-- Day list -->
       <div class="space-y-1">
         @for (day of calendarDays(); track day.date) {
-          <div class="sticky top-[57px] z-10">
+          <div class="sticky top-0 z-10">
             @if (day.residency) {
               <div class="h-1 mx-1 rounded-sm"
                    [class]="day.residency === 'Mamma' ? 'bg-rose-300' : 'bg-blue-300'"></div>

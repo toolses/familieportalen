@@ -21,8 +21,11 @@ type ConfirmMode = 'delete-child' | 'clear-all';
 
       <!-- Google Calendar (kun admin) -->
       @if (auth.isAdmin()) {
-      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-        <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Google Kalender</h3>
+      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3 border border-indigo-100">
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Google Kalender</h3>
+          <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
+        </div>
 
         @if (google.isConnected()) {
           <div class="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-xl px-3 py-2">
@@ -176,9 +179,12 @@ type ConfirmMode = 'delete-child' | 'clear-all';
 
       <!-- Barn-administrasjon (kun admin) -->
       @if (auth.isAdmin()) {
-      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4 border border-indigo-100">
         <div class="flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Barn</h3>
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Barn</h3>
+            <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
+          </div>
           <button (click)="openAdd()"
                   class="flex items-center gap-1 text-sm text-blue-600 font-medium active:scale-[0.97] transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
@@ -212,8 +218,11 @@ type ConfirmMode = 'delete-child' | 'clear-all';
 
       <!-- Data management (kun admin) -->
       @if (auth.isAdmin()) {
-      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3">
-        <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Data</h3>
+      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3 border border-indigo-100">
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Data</h3>
+          <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
+        </div>
         <p class="text-sm text-gray-500">
           {{ data.children().length }} barn registrert.
         </p>
