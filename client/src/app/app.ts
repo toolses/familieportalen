@@ -54,7 +54,7 @@ import { SchoolDataService } from './shared/services/school-data.service';
 
       <!-- Bottom nav (only when logged in) -->
       @if (auth.isLoggedIn()) {
-        <nav class="shrink-0 bg-white border-t border-gray-200 z-50 safe-bottom">
+        <nav class="shrink-0 bg-white border-t border-gray-200 z-50 pb-1">
           <div class="max-w-2xl mx-auto flex">
             <a #rla1="routerLinkActive" routerLink="/" routerLinkActive [routerLinkActiveOptions]="{ exact: true }"
                class="flex-1 flex flex-col items-center py-2 transition-colors border-t-2"
@@ -98,9 +98,6 @@ import { SchoolDataService } from './shared/services/school-data.service';
   `,
   styles: `
     .safe-top { padding-top: env(safe-area-inset-top); }
-    /* Halv safe-area nederst – gir nok klaring til iOS home indicator
-       uten å reservere hele 34px som tomt hvitt felt under navbar. */
-    .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) / 2); }
   `,
 })
 export class App {
