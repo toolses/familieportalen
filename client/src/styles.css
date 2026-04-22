@@ -2,16 +2,20 @@
 
 /* === iOS PWA-fiksing === */
 
-/* Forhindrer at body/window scroller → holder header og navbar på plass */
+/* Forhindrer at body/window scroller → holder header og navbar på plass.
+   100dvh (i stedet for 100%) sørger for at dokumentet dekker hele viewport
+   inkludert iOS sin bunn-safe-area. Uten dette blir fixed inset-0 klippet
+   over safe-area, og iOS fyller gapet med manifest `theme_color` (lilla). */
 html, body {
   height: 100%;
+  height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
 }
 
 body {
-  /* Hvit bakgrunn matcher navbar/innholdsflater – forhindrer at lilla skinner
-     gjennom safe-area nederst på iOS PWA. Splash har sin egen gradient. */
+  /* Hvit fallback matcher navbar/innholdsflater dersom noe likevel skinner
+     gjennom. Splash har sin egen inline-gradient. */
   background-color: #ffffff;
   /* Fjerner grå tap-highlight på iOS */
   -webkit-tap-highlight-color: transparent;
