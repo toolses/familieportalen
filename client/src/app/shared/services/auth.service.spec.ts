@@ -17,6 +17,14 @@ vi.mock('firebase/auth', () => ({
   OAuthProvider: class {},
 }));
 
+// core/firebase.ts kaller initializeFirestore fra firebase/firestore — mock
+// for å unngå at reell Firebase-initialisering kjøres i testmiljøet.
+vi.mock('../../core/firebase', () => ({
+  firebaseApp: {},
+  firebaseAuth: {},
+  firebaseDb: {},
+}));
+
 import { AuthService } from './auth.service';
 import type { User } from 'firebase/auth';
 

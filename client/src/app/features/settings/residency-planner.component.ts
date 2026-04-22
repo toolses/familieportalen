@@ -118,7 +118,7 @@ interface GridCell {
             <div></div>
           } @else {
             <button
-              (click)="toggleCell(cell.date, cell.residency, cell.hasOverride)"
+              (click)="toggleCell(cell.date, cell.residency)"
               class="relative flex items-center justify-center rounded-lg text-xs font-semibold transition-all active:scale-[0.92] aspect-square"
               [class]="cellClass(cell)">
               {{ cell.dayNum }}
@@ -222,9 +222,10 @@ export class ResidencyPlannerComponent {
     return cls;
   }
 
-  toggleCell(dateStr: string, currentResidency: 'Mamma' | 'Pappa' | null, hasOverride: boolean): void {
-    if (hasOverride) {
-      // Clear override → return to base rotation
+  toggleCell(dateStr: string, currentResidency: 'Mamma' | 'Pappa' | null): void {
+    const overrides = this.data.residencyOverrides();
+    if (dateStr in overrides) {
+      // Already overridden — remove the override
       this.data.setResidencyOverride(dateStr, null);
     } else {
       // Override to the opposite of what is currently showing

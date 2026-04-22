@@ -2,10 +2,12 @@ import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core'
 import {
   doc,
   setDoc,
+  updateDoc,
+  deleteField,
   onSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { PlanMetadata, SchoolEvent, SavedPlan, Child, FamilyState, BaseRotation, ResidencyOverrides } from '../../features/school-plan/models/school-plan.models';
+import { PlanMetadata, SchoolEvent, SavedPlan, Child, FamilyState, BaseRotation, ResidencyOverrides, ManualReminder, ManualCalendarEvent } from '../../features/school-plan/models/school-plan.models';
 import { AuthService } from './auth.service';
 import { HouseholdService } from './household.service';
 import { firebaseDb as db } from '../../core/firebase';
@@ -37,6 +39,8 @@ export class SchoolDataService {
   readonly activeWeek = signal<{ uke: number; aar: number } | null>(null);
   readonly googleCalendarId = signal<string | null>(null);
   readonly sharedConfigLoaded = signal(false);
+  readonly manualReminders = signal<ManualReminder[]>([]);
+  readonly calendarEvents = signal<ManualCalendarEvent[]>([]);
 
   readonly activeChild = computed(() => {
     const id = this.activeChildId();
@@ -80,6 +84,54 @@ export class SchoolDataService {
       this.unsubFirestore?.();
       this.unsubSharedConfig?.();
     });
+  }
+
+  // ── Manual Reminders ──────────────────────────────────────
+
+  addManualReminder(reminder: Omit<ManualReminder, 'id' | 'createdAt'>): void {
+    const entry: ManualReminder = {
+      ...reminder,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    this.manualReminders.update((r) => [...r, entry]);
+    this.persist();
+  }
+
+  updateManualReminder(id: string, updates: Omit<ManualReminder, 'id' | 'createdAt'>): void {
+    this.manualReminders.update((r) =>
+      r.map((item) => (item.id === id ? { ...item, ...updates } : item))
+    );
+    this.persist();
+  }
+
+  deleteManualReminder(id: string): void {
+    this.manualReminders.update((r) => r.filter((item) => item.id !== id));
+    this.persist();
+  }
+
+  // ── Manual Calendar Events ─────────────────────────────────
+
+  addCalendarEvent(event: Omit<ManualCalendarEvent, 'id' | 'createdAt'>): void {
+    const entry: ManualCalendarEvent = {
+      ...event,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    };
+    this.calendarEvents.update((e) => [...e, entry]);
+    this.persist();
+  }
+
+  updateCalendarEvent(id: string, updates: Omit<ManualCalendarEvent, 'id' | 'createdAt'>): void {
+    this.calendarEvents.update((e) =>
+      e.map((item) => (item.id === id ? { ...item, ...updates } : item))
+    );
+    this.persist();
+  }
+
+  deleteCalendarEvent(id: string): void {
+    this.calendarEvents.update((e) => e.filter((item) => item.id !== id));
+    this.persist();
   }
 
   // ── Child management ─────────────────────────────────────
@@ -145,7 +197,15 @@ export class SchoolDataService {
       }
       return copy;
     });
-    this.persist();
+    const hid = this.household.householdId();
+    if (hid) {
+      // Use dot-notation field path so Firestore adds/removes individual keys
+      // rather than merging an empty map (which would leave existing keys intact).
+      const fieldValue = label === null ? deleteField() : label;
+      updateDoc(doc(db, 'households', hid), {
+        [`residencyOverrides.${date}`]: fieldValue,
+      }).catch((err) => console.error('Firestore override write failed:', err));
+    }
   }
 
   // ── Plan persistence ────────────────────────────────────────
@@ -250,6 +310,8 @@ export class SchoolDataService {
     this.residencyOverrides.set({});
     this.activeWeek.set(null);
     this.googleCalendarId.set(null);
+    this.manualReminders.set([]);
+    this.calendarEvents.set([]);
     setDoc(doc(db, 'config', 'shared'), { googleCalendarId: null }, { merge: true }).catch(() => {});
     await this.persistToFirestore();
   }
@@ -264,6 +326,8 @@ export class SchoolDataService {
       plans: this.plansMap(),
       baseRotation: this.baseRotation(),
       residencyOverrides: this.residencyOverrides(),
+      manualReminders: this.manualReminders(),
+      calendarEvents: this.calendarEvents(),
     };
   }
 
@@ -312,6 +376,17 @@ export class SchoolDataService {
     this.plansMap.set(state.plans ?? {});
     this.baseRotation.set(state.baseRotation ?? null);
     this.residencyOverrides.set(state.residencyOverrides ?? {});
+    // Migrate old single-value assignedTo to array
+    const reminders = (state.manualReminders ?? []).map((r) => ({
+      ...r,
+      assignedTo: Array.isArray(r.assignedTo) ? r.assignedTo : [r.assignedTo],
+    }));
+    const calEvents = (state.calendarEvents ?? []).map((e) => ({
+      ...e,
+      assignedTo: Array.isArray(e.assignedTo) ? e.assignedTo : [e.assignedTo],
+    }));
+    this.manualReminders.set(reminders);
+    this.calendarEvents.set(calEvents);
     if (state.activeWeek) {
       this.activeWeek.set(state.activeWeek);
     }

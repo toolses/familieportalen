@@ -96,31 +96,58 @@ type ConfirmMode = 'delete-child' | 'clear-all';
           </div>
 
           <!-- Medlemsliste -->
-          <div class="space-y-2">
+          <div class="space-y-3">
             @for (member of household.members(); track member.uid) {
-              <div class="flex items-center gap-3">
-                @if (member.photoURL) {
-                  <img [src]="member.photoURL" class="w-8 h-8 rounded-full shrink-0" referrerpolicy="no-referrer" />
-                } @else {
-                  <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm shrink-0">
-                    {{ member.displayName.charAt(0).toUpperCase() }}
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-3">
+                  @if (member.photoURL) {
+                    <img [src]="member.photoURL" class="w-8 h-8 rounded-full shrink-0" referrerpolicy="no-referrer" />
+                  } @else {
+                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm shrink-0">
+                      {{ member.displayName.charAt(0).toUpperCase() }}
+                    </div>
+                  }
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-800 truncate">{{ member.displayName }}</p>
+                    <p class="text-xs text-gray-400">{{ member.role === 'admin' ? 'Admin' : 'Medlem' }}</p>
                   </div>
-                }
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-800 truncate">{{ member.displayName }}</p>
-                  <p class="text-xs text-gray-400">{{ member.role === 'admin' ? 'Admin' : 'Medlem' }}</p>
-                </div>
-                @if (household.isAdmin() && member.uid !== auth.user()?.uid) {
-                  @if (member.role === 'member') {
-                    <button (click)="promoteHouseholdMember(member.uid)"
-                            class="text-xs text-indigo-600 font-medium px-2 py-1 rounded-lg hover:bg-indigo-50 transition-colors shrink-0">
-                      Gjør admin
+                  @if (household.isAdmin() && member.uid !== auth.user()?.uid) {
+                    @if (member.role === 'member') {
+                      <button (click)="promoteHouseholdMember(member.uid)"
+                              class="text-xs text-indigo-600 font-medium px-2 py-1 rounded-lg hover:bg-indigo-50 transition-colors shrink-0">
+                        Gjør admin
+                      </button>
+                    }
+                    <button (click)="removeHouseholdMember(member.uid)"
+                            class="text-xs text-red-500 font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition-colors shrink-0">
+                      Fjern
                     </button>
                   }
-                  <button (click)="removeHouseholdMember(member.uid)"
-                          class="text-xs text-red-500 font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition-colors shrink-0">
-                    Fjern
-                  </button>
+                </div>
+                <!-- Mamma / Pappa rolle-valg (kun admin) -->
+                @if (household.isAdmin()) {
+                  <div class="flex gap-1.5 ml-11">
+                    <button (click)="setParentRole(member.uid, 'Mamma')"
+                            class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all active:scale-[0.97]"
+                            [class]="member.parentRole === 'Mamma'
+                              ? 'bg-rose-500 text-white'
+                              : 'bg-gray-100 text-gray-500 hover:bg-rose-50 hover:text-rose-600'">
+                      Mamma
+                    </button>
+                    <button (click)="setParentRole(member.uid, 'Pappa')"
+                            class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all active:scale-[0.97]"
+                            [class]="member.parentRole === 'Pappa'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-600'">
+                      Pappa
+                    </button>
+                    @if (member.parentRole) {
+                      <button (click)="setParentRole(member.uid, null)"
+                              class="px-2 py-1 rounded-lg text-xs text-gray-400 hover:text-gray-600 transition-all active:scale-[0.97]">
+                        ✕
+                      </button>
+                    }
+                  </div>
                 }
               </div>
             }
@@ -529,6 +556,11 @@ export class SettingsComponent {
 
   async promoteHouseholdMember(uid: string): Promise<void> {
     await this.household.promoteMember(uid);
+  }
+
+  async setParentRole(uid: string, role: 'Mamma' | 'Pappa' | null): Promise<void> {
+    await this.household.setMemberParentRole(uid, role);
+    this.flashSaved();
   }
 
   presetColors = PRESET_COLORS;

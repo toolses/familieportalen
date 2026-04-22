@@ -3,15 +3,19 @@ import { Router, RouterLink } from '@angular/router';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { ResidencyService } from '../../shared/services/residency.service';
 import { GoogleCalendarService, GoogleCalendarEvent } from '../../shared/services/google-calendar.service';
-import { SchoolEvent, Child } from '../school-plan/models/school-plan.models';
+import { SchoolEvent, Child, ManualReminder, ManualCalendarEvent, AssignedTo } from '../school-plan/models/school-plan.models';
 import { formatDateShort, dayName } from '../../shared/utils/date-utils';
 import { SwipeDirective } from '../../shared/directives/swipe.directive';
+import { EventEditSheetComponent } from '../../shared/components/event-edit-sheet.component';
+import { HomeworkItemComponent } from '../../shared/components/homework-item.component';
 
-const ACTION_KEYWORDS = ['husk', 'ta med', 'matpakke', 'penger', 'utstyr', 'lade', 'sekk', 'tursekk', 'gymtøy', 'gymsko', 'badetøy', 'skiftetøy', 'turklær'];
+const ACTION_KEYWORDS = ['husk', 'ta med', 'matpakke', 'penger', 'utstyr', 'lade', 'sekk', 'tursekk', 'gymtøy', 'gymsko', 'badetøy', 'skiftetøy', 'turklær', 'gymtøy'];
 
 interface TaggedEvent extends SchoolEvent {
   childName: string;
   childColor: string;
+  childId: string;
+  planRef: SchoolEvent;
 }
 
 interface ChildUkelekser {
@@ -22,7 +26,7 @@ interface ChildUkelekser {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [SwipeDirective, RouterLink],
+  imports: [SwipeDirective, RouterLink, EventEditSheetComponent, HomeworkItemComponent],
   template: `
     @if (data.children().length === 0) {
       <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -118,7 +122,7 @@ interface ChildUkelekser {
           </div>
         }
 
-        @if (allTodayEvents().length === 0 && todayGoogleEvents().length === 0 && allUkelekser().length === 0 && tomorrowReminders().length === 0) {
+        @if (allTodayEvents().length === 0 && todayGoogleEvents().length === 0 && allUkelekser().length === 0 && tomorrowReminders().length === 0 && tomorrowManualReminders().length === 0 && todayManualReminders().length === 0 && todayManualEvents().length === 0) {
           <div class="flex flex-col items-center py-12 text-center">
             <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
@@ -133,8 +137,8 @@ interface ChildUkelekser {
           </div>
         } @else {
 
-          <!-- Husk i dag! (reminder med action-keywords) -->
-          @if (quickActions().length > 0) {
+          <!-- Husk i dag! -->
+          @if (quickActions().length > 0 || todayManualReminders().length > 0) {
             <div class="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
               <h3 class="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
@@ -151,6 +155,26 @@ interface ChildUkelekser {
                         <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                       }
                       <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
+                    </div>
+                  </div>
+                }
+                @for (reminder of todayManualReminders(); track reminder.id) {
+                  <div class="flex gap-3 items-start bg-white/80 rounded-xl p-3 shadow-xs">
+                    <div class="w-2.5 h-2.5 rounded-full mt-1 shrink-0 ring-2 ring-amber-200"
+                         [style.background]="getAssignedColor(reminder.assignedTo)"></div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2">
+                        <span class="font-semibold text-gray-800 text-sm">{{ reminder.title }}</span>
+                        @if (reminder.time) {
+                          <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
+                        }
+                      </div>
+                      @if (reminder.description) {
+                        <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
+                      }
+                      <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(reminder.assignedTo)">
+                        {{ getAssignedLabel(reminder.assignedTo) }}
+                      </p>
                     </div>
                   </div>
                 }
@@ -194,7 +218,36 @@ interface ChildUkelekser {
             </div>
           }
 
-          <!-- Påminnelser -->
+          <!-- Manuelle hendelser -->
+          @if (todayManualEvents().length > 0) {
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4"
+                 style="border-left: 4px solid #4F46E5;">
+              <h3 class="text-sm font-bold text-indigo-800 mb-3 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                Hendelser
+              </h3>
+              <div class="space-y-2">
+                @for (event of todayManualEvents(); track event.id) {
+                  <div class="flex gap-3 items-start bg-white/60 rounded-xl p-3">
+                    <div class="w-1 self-stretch rounded-full shrink-0"
+                         [style.background]="getAssignedColor(event.assignedTo)"></div>
+                    <div class="flex-1 min-w-0">
+                      <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
+                      <p class="text-xs text-gray-400 mt-0.5">{{ formatManualEventTimeLabel(event) }}</p>
+                      @if (event.description) {
+                        <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                      }
+                      <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(event.assignedTo)">
+                        {{ getAssignedLabel(event.assignedTo) }}
+                      </p>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Påminnelser (skjult siden alle er i Husk i dag!) -->
           @if (reminderEvents().length > 0) {
             <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4">
               <h3 class="text-sm font-semibold text-amber-700 mb-3 flex items-center gap-2">
@@ -203,7 +256,7 @@ interface ChildUkelekser {
               </h3>
               <div class="space-y-2">
                 @for (event of reminderEvents(); track $index) {
-                  <div class="flex gap-3 items-start bg-white/60 rounded-xl p-3">
+                  <button (click)="openEditEvent(event)" class="w-full flex gap-3 items-start bg-white/60 rounded-xl p-3 active:bg-white transition-colors text-left">
                     <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" [style.background]="event.childColor"></div>
                     <div class="flex-1 min-w-0">
                       <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
@@ -212,7 +265,8 @@ interface ChildUkelekser {
                       }
                       <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                     </div>
-                  </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300 shrink-0 mt-1"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
                 }
               </div>
             </div>
@@ -227,23 +281,18 @@ interface ChildUkelekser {
               </h3>
               <div class="space-y-2">
                 @for (event of regularHomeworkEvents(); track $index) {
-                  <div class="flex gap-3 items-start bg-white/60 rounded-xl p-3">
-                    <div class="w-2 h-2 rounded-full bg-blue-400 mt-1.5 shrink-0"></div>
-                    <div class="flex-1 min-w-0">
-                      <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
-                      @if (event.description) {
-                        <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
-                      }
-                      <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
-                    </div>
-                  </div>
+                  <app-homework-item
+                    [event]="event"
+                    [childName]="event.childName"
+                    [childColor]="event.childColor"
+                    (edit)="openEditEvent(event)" />
                 }
               </div>
             </div>
           }
 
           <!-- Morgendagens påminnelser -->
-          @if (tomorrowReminders().length > 0) {
+          @if (tomorrowReminders().length > 0 || tomorrowManualReminders().length > 0) {
             <div class="border border-gray-200 rounded-2xl p-4">
               <h3 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -251,7 +300,7 @@ interface ChildUkelekser {
               </h3>
               <div class="space-y-1.5">
                 @for (event of tomorrowReminders(); track $index) {
-                  <div class="flex gap-2.5 items-start">
+                  <button (click)="openEditEvent(event)" class="w-full flex gap-2.5 items-start text-left active:opacity-60 transition-opacity">
                     <div class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" [style.background]="event.childColor"></div>
                     <div class="flex-1 min-w-0">
                       <span class="text-sm text-gray-500">{{ event.title }}</span>
@@ -259,6 +308,26 @@ interface ChildUkelekser {
                         <p class="text-xs text-gray-400 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                       }
                       <p class="text-[10px] font-semibold mt-0.5" [style.color]="event.childColor">{{ event.childName }}</p>
+                    </div>
+                  </button>
+                }
+                @for (reminder of tomorrowManualReminders(); track reminder.id) {
+                  <div class="w-full flex gap-2.5 items-start">
+                    <div class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                         [style.background]="getAssignedColor(reminder.assignedTo)"></div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-sm text-gray-500">{{ reminder.title }}</span>
+                        @if (reminder.time) {
+                          <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
+                        }
+                      </div>
+                      @if (reminder.description) {
+                        <p class="text-xs text-gray-400 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
+                      }
+                      <p class="text-[10px] font-semibold mt-0.5" [style.color]="getAssignedColor(reminder.assignedTo)">
+                        {{ getAssignedLabel(reminder.assignedTo) }}
+                      </p>
                     </div>
                   </div>
                 }
@@ -285,15 +354,9 @@ interface ChildUkelekser {
               @if (isUkelekseOpen(entry.child.id)) {
                 <div class="px-4 pb-4 space-y-2">
                   @for (event of entry.events; track $index) {
-                    <div class="flex gap-3 items-start bg-white/60 rounded-xl p-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400 mt-1 shrink-0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                      <div class="flex-1 min-w-0">
-                        <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
-                        @if (event.description) {
-                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
-                        }
-                      </div>
-                    </div>
+                    <app-homework-item
+                      [event]="event"
+                      (edit)="openEditEventForChild(entry.child, event)" />
                   }
                 </div>
               }
@@ -302,6 +365,14 @@ interface ChildUkelekser {
 
         }
       </div>
+    }
+
+    @if (editingTaggedEvent()) {
+      <app-event-edit-sheet
+        [event]="editingTaggedEvent()!"
+        (saved)="onEventSaved($event)"
+        (deleted)="onEventDeleted()"
+        (cancelled)="editingTaggedEvent.set(null)" />
     }
   `,
   styles: `
@@ -318,6 +389,7 @@ export class DashboardComponent {
   private ukelekseOpenMap = signal<Record<string, boolean>>({});
   private dayOffset = signal(0);
   showOverridePanel = signal(false);
+  editingTaggedEvent = signal<TaggedEvent | null>(null);
 
   private get todayIso() {
     const d = new Date();
@@ -386,7 +458,7 @@ export class DashboardComponent {
       if (!plan) continue;
       for (const e of plan.events) {
         if (e.date === date && !this.isUkelekse(e)) {
-          result.push({ ...e, childName: child.name, childColor: child.color });
+          result.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, planRef: e });
         }
       }
     }
@@ -394,11 +466,7 @@ export class DashboardComponent {
   });
 
   quickActions = computed<TaggedEvent[]>(() => {
-    return this.allTodayEvents().filter((e) => {
-      if (e.category !== 'reminder') return false;
-      const text = (e.title + ' ' + (e.description ?? '')).toLowerCase();
-      return ACTION_KEYWORDS.some((kw) => text.includes(kw));
-    });
+    return this.allTodayEvents().filter((e) => e.category === 'reminder');
   });
 
   reminderEvents = computed<TaggedEvent[]>(() => {
@@ -421,11 +489,26 @@ export class DashboardComponent {
       if (!plan) continue;
       for (const e of plan.events) {
         if (e.date === date && e.category === 'reminder') {
-          result.push({ ...e, childName: child.name, childColor: child.color });
+          result.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, planRef: e });
         }
       }
     }
     return result;
+  });
+
+  todayManualReminders = computed<ManualReminder[]>(() => {
+    const date = this.selectedDate();
+    return this.data.manualReminders().filter((r) => this.reminderOccursOnDate(r, date));
+  });
+
+  todayManualEvents = computed<ManualCalendarEvent[]>(() => {
+    const date = this.selectedDate();
+    return this.data.calendarEvents().filter((e) => this.calendarEventOccursOnDate(e, date));
+  });
+
+  tomorrowManualReminders = computed<ManualReminder[]>(() => {
+    const date = this.tomorrowDate();
+    return this.data.manualReminders().filter((r) => this.reminderOccursOnDate(r, date));
   });
 
   // Ukelekser grouped per child
@@ -484,6 +567,85 @@ export class DashboardComponent {
 
   goToSkole() { this.router.navigate(['/skole']); }
   goToSettings() { this.router.navigate(['/innstillinger']); }
+
+  openEditEvent(event: TaggedEvent): void {
+    this.editingTaggedEvent.set(event);
+  }
+
+  openEditEventForChild(child: Child, event: SchoolEvent): void {
+    this.editingTaggedEvent.set({ ...event, childName: child.name, childColor: child.color, childId: child.id, planRef: event });
+  }
+
+  onEventSaved(updated: SchoolEvent): void {
+    const original = this.editingTaggedEvent();
+    if (!original) return;
+    this.data.updateEventInPlan(original.childId, original.planRef, updated);
+    this.editingTaggedEvent.set(null);
+  }
+
+  onEventDeleted(): void {
+    const original = this.editingTaggedEvent();
+    if (!original) return;
+    this.data.deleteEventFromPlan(original.childId, original.planRef);
+    this.editingTaggedEvent.set(null);
+  }
+
+  getAssignedLabel(assignedTo: AssignedTo[]): string {
+    return assignedTo.map((a) => {
+      if (a.type === 'parent') return a.role;
+      const child = this.data.children().find((c) => c.id === a.childId);
+      return child?.name ?? 'Ukjent';
+    }).join(' · ');
+  }
+
+  getAssignedColor(assignedTo: AssignedTo[]): string {
+    const first = assignedTo[0];
+    if (!first) return '#6B7280';
+    if (first.type === 'parent') return first.role === 'Mamma' ? '#F43F5E' : '#3B82F6';
+    const child = this.data.children().find((c) => c.id === first.childId);
+    return child?.color ?? '#6B7280';
+  }
+
+  formatManualEventTimeLabel(event: ManualCalendarEvent): string {
+    if (event.isAllDay) {
+      if (event.startDate === event.endDate) return 'Hele dagen';
+      return `Hele dagen · ${formatDateShort(event.startDate)} – ${formatDateShort(event.endDate)}`;
+    }
+    if (event.startDate !== event.endDate) {
+      const start = `${formatDateShort(event.startDate)}${event.startTime ? ' ' + event.startTime : ''}`;
+      const end = `${formatDateShort(event.endDate)}${event.endTime ? ' ' + event.endTime : ''}`;
+      return `${start} – ${end}`;
+    }
+    const start = event.startTime ?? '';
+    const end = event.endTime ? ` – ${event.endTime}` : '';
+    return start + end;
+  }
+
+  private reminderOccursOnDate(reminder: ManualReminder, date: string): boolean {
+    if (!reminder.recurrence) return reminder.date === date;
+    const startMs = new Date(reminder.date + 'T00:00:00Z').getTime();
+    const checkMs = new Date(date + 'T00:00:00Z').getTime();
+    if (checkMs < startMs) return false;
+    if (new Date(reminder.date + 'T00:00:00Z').getUTCDay() !== new Date(date + 'T00:00:00Z').getUTCDay()) return false;
+    const diffWeeks = Math.round((checkMs - startMs) / (7 * 24 * 60 * 60 * 1000));
+    if (reminder.recurrence.type === 'weekly') return true;
+    return diffWeeks % 2 === 0;
+  }
+
+  private calendarEventOccursOnDate(event: ManualCalendarEvent, date: string): boolean {
+    if (!event.recurrence) {
+      return event.startDate <= date && date <= event.endDate;
+    }
+    const startMs = new Date(event.startDate + 'T00:00:00Z').getTime();
+    const checkMs = new Date(date + 'T00:00:00Z').getTime();
+    if (checkMs < startMs) return false;
+    const durationDays = Math.round(
+      (new Date(event.endDate + 'T00:00:00Z').getTime() - startMs) / (24 * 60 * 60 * 1000)
+    );
+    const intervalDays = event.recurrence.type === 'weekly' ? 7 : 14;
+    const diffDays = Math.round((checkMs - startMs) / (24 * 60 * 60 * 1000));
+    return diffDays % intervalDays <= durationDays;
+  }
 
   formatTime(dateTime: string): string {
     try {

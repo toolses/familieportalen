@@ -2,12 +2,15 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { ResidencyService } from '../../shared/services/residency.service';
 import { GoogleCalendarService, GoogleCalendarEvent } from '../../shared/services/google-calendar.service';
-import { SchoolEvent, SavedPlan } from '../school-plan/models/school-plan.models';
+import { SchoolEvent, SavedPlan, ManualReminder, ManualCalendarEvent, AssignedTo } from '../school-plan/models/school-plan.models';
 import { formatDateShort, dayName } from '../../shared/utils/date-utils';
 import { SwipeDirective } from '../../shared/directives/swipe.directive';
 import { EventEditSheetComponent, WeekDayOption } from '../../shared/components/event-edit-sheet.component';
+import { ReminderSheetComponent } from '../../shared/components/reminder-sheet.component';
+import { CalendarEventSheetComponent } from '../../shared/components/calendar-event-sheet.component';
+import { HomeworkItemComponent } from '../../shared/components/homework-item.component';
 
-type FilterMode = 'all' | 'homework' | 'reminders';
+type FilterMode = 'all' | 'homework' | 'reminders' | 'events';
 
 interface TaggedSchoolEvent extends SchoolEvent {
   childName: string;
@@ -24,14 +27,16 @@ interface CalendarDay {
   residency: 'Mamma' | 'Pappa' | null;
   schoolEvents: TaggedSchoolEvent[];
   googleEvents: GoogleCalendarEvent[];
+  manualReminders: ManualReminder[];
+  manualEvents: { event: ManualCalendarEvent; isFirstDay: boolean }[];
 }
 
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [SwipeDirective, EventEditSheetComponent],
+  imports: [SwipeDirective, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
   template: `
-    <div class="px-4 pt-2 pb-6 space-y-3" appSwipe (swipeLeft)="nextWeek()" (swipeRight)="prevWeek()">
+    <div class="px-4 pt-2 pb-24 space-y-3" appSwipe (swipeLeft)="nextWeek()" (swipeRight)="prevWeek()">
       <!-- Header -->
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-bold text-gray-800">Kalender</h2>
@@ -70,21 +75,26 @@ interface CalendarDay {
       </div>
 
       <!-- Filter -->
-      <div class="flex gap-2">
+      <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
         <button (click)="filter.set('all')"
-                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
                 [class]="filter() === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'">
           Alle
         </button>
         <button (click)="filter.set('homework')"
-                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
                 [class]="filter() === 'homework' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'">
           Lekser
         </button>
         <button (click)="filter.set('reminders')"
-                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
                 [class]="filter() === 'reminders' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-500'">
           Påminnelser
+        </button>
+        <button (click)="filter.set('events')"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
+                [class]="filter() === 'events' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500'">
+          Hendelser
         </button>
       </div>
 
@@ -115,12 +125,13 @@ interface CalendarDay {
           </div>
 
           <div class="space-y-2 pb-3">
-            @if (day.schoolEvents.length === 0 && day.googleEvents.length === 0) {
+            @if (day.schoolEvents.length === 0 && day.googleEvents.length === 0 && day.manualReminders.length === 0 && day.manualEvents.length === 0) {
               <div class="text-center py-3 text-gray-300 text-xs">
                 Ingen hendelser
               </div>
             }
 
+            <!-- Alle påminnelser (skole + manuelle) -->
             @for (event of day.schoolEvents; track $index) {
               @if (event.category === 'reminder') {
                 <button (click)="openEditEvent(event)"
@@ -136,22 +147,79 @@ interface CalendarDay {
                   <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
                 </button>
               }
-              @if (event.category === 'homework') {
-                <button (click)="openEditEvent(event)"
-                        class="w-full flex gap-3 items-start bg-blue-50 border border-blue-100 rounded-xl p-3 text-left active:bg-blue-100 transition-colors">
-                  <div class="w-2 h-2 rounded-full bg-blue-400 mt-1.5 shrink-0"></div>
-                  <div class="flex-1 min-w-0">
-                    <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
-                    @if (event.description) {
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+            }
+
+            @for (reminder of day.manualReminders; track reminder.id) {
+              <button (click)="openEditReminder(reminder)"
+                      class="w-full flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3 text-left active:bg-amber-100 transition-colors">
+                <div class="w-2 h-2 rounded-full mt-1.5 shrink-0"
+                     [style.background]="getAssignedColor(reminder.assignedTo)"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-gray-800 text-sm">{{ reminder.title }}</span>
+                    @if (reminder.time) {
+                      <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
                     }
-                    <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
-                  <span class="text-[10px] text-blue-600 font-medium bg-blue-100 px-1.5 py-0.5 rounded shrink-0">Lekse</span>
-                </button>
+                  @if (reminder.description) {
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
+                  }
+                  <div class="flex items-center gap-2 mt-1">
+                    <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(reminder.assignedTo)">
+                      {{ getAssignedLabel(reminder.assignedTo) }}
+                    </p>
+                    @if (reminder.recurrence) {
+                      <span class="text-[10px] text-gray-400">
+                        @if (reminder.recurrence.type === 'weekly') { Hver uke } @else { Annenhver uke }
+                      </span>
+                    }
+                    @if (reminder.isSchoolRelated) {
+                      <span class="text-[10px] text-indigo-500 font-medium">Skole</span>
+                    }
+                  </div>
+                </div>
+                <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
+              </button>
+            }
+
+            <!-- Lekser -->
+            @for (event of day.schoolEvents; track $index) {
+              @if (event.category === 'homework') {
+                <app-homework-item
+                  [event]="event"
+                  [childName]="event.childName"
+                  [childColor]="event.childColor"
+                  (edit)="openEditEvent(event)" />
               }
             }
 
+            <!-- Manuelle hendelser -->
+            @for (item of day.manualEvents; track item.event.id) {
+              <button (click)="openEditCalendarEvent(item.event)"
+                      class="w-full flex gap-3 items-start bg-indigo-50 rounded-xl p-3 text-left active:bg-indigo-100 transition-colors"
+                      [style.border-left]="'3px solid ' + getAssignedColor(item.event.assignedTo)">
+                <div class="flex-1 min-w-0">
+                  <span class="font-medium text-gray-800 text-sm">{{ item.event.title }}</span>
+                  <p class="text-xs text-gray-400 mt-0.5">{{ formatManualEventTimeLabel(item.event) }}</p>
+                  @if (item.event.description) {
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ item.event.description }}</p>
+                  }
+                  <div class="flex items-center gap-2 mt-1">
+                    <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(item.event.assignedTo)">
+                      {{ getAssignedLabel(item.event.assignedTo) }}
+                    </p>
+                    @if (item.event.recurrence) {
+                      <span class="text-[10px] text-gray-400">
+                        @if (item.event.recurrence.type === 'weekly') { Hver uke } @else { Annenhver uke }
+                      </span>
+                    }
+                  </div>
+                </div>
+                <span class="text-[10px] text-indigo-600 font-medium bg-indigo-100 px-1.5 py-0.5 rounded shrink-0">Hendelse</span>
+              </button>
+            }
+
+            <!-- Google Calendar hendelser -->
             @for (event of day.googleEvents; track event.id) {
               <div class="flex gap-3 items-start bg-white border border-gray-200 rounded-xl p-3 shadow-xs"
                    style="border-left: 3px solid #4285F4;">
@@ -180,6 +248,50 @@ interface CalendarDay {
       </div>
     </div>
 
+    <!-- FAB: Legg til -->
+    @if (!showNewItemMenu() && !editingEvent() && editingReminder() === undefined && editingCalendarEvent() === undefined && !showNewReminderSheet() && !showNewCalendarEventSheet()) {
+      <button (click)="showNewItemMenu.set(true)"
+              class="fixed bottom-20 right-4 z-40 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all hover:bg-indigo-700">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+      </button>
+    }
+
+    <!-- Meny: velg type nytt element -->
+    @if (showNewItemMenu()) {
+      <div class="fixed inset-0 z-50 flex flex-col justify-end">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="showNewItemMenu.set(false)"></div>
+        <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 safe-bottom shadow-2xl space-y-3 modal-sheet">
+          <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2"></div>
+          <h3 class="text-base font-bold text-gray-900 text-center">Hva vil du legge til?</h3>
+          <button (click)="openNewReminder()"
+                  class="w-full flex items-center gap-4 bg-amber-50 border border-amber-100 rounded-2xl p-4 active:bg-amber-100 transition-colors text-left">
+            <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-gray-800 text-sm">Påminnelse</p>
+              <p class="text-xs text-gray-500 mt-0.5">Enkel påminnelse med valgfri gjentagelse</p>
+            </div>
+          </button>
+          <button (click)="openNewCalendarEvent()"
+                  class="w-full flex items-center gap-4 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 active:bg-indigo-100 transition-colors text-left">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+            </div>
+            <div>
+              <p class="font-semibold text-gray-800 text-sm">Hendelse</p>
+              <p class="text-xs text-gray-500 mt-0.5">Kalenderhendelse med dato og klokkeslett</p>
+            </div>
+          </button>
+          <button (click)="showNewItemMenu.set(false)"
+                  class="w-full py-3 rounded-xl font-medium text-sm text-gray-500 active:scale-[0.98] transition-all">
+            Avbryt
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Rediger skole-hendelse -->
     @if (editingEvent()) {
       <app-event-edit-sheet
         [event]="editingEvent()!"
@@ -188,10 +300,36 @@ interface CalendarDay {
         (deleted)="onEventDeleted()"
         (cancelled)="editingEvent.set(null)" />
     }
+
+    <!-- Ny / rediger påminnelse -->
+    @if (showNewReminderSheet() || editingReminder() !== undefined) {
+      <app-reminder-sheet
+        [reminder]="editingReminder() ?? null"
+        [defaultDate]="selectedDate()"
+        (saved)="onReminderSaved($event)"
+        (deleted)="onReminderDeleted()"
+        (cancelled)="closeReminderSheet()" />
+    }
+
+    <!-- Ny / rediger hendelse -->
+    @if (showNewCalendarEventSheet() || editingCalendarEvent() !== undefined) {
+      <app-calendar-event-sheet
+        [event]="editingCalendarEvent() ?? null"
+        [defaultDate]="selectedDate()"
+        (saved)="onCalendarEventSaved($event)"
+        (deleted)="onCalendarEventDeleted()"
+        (cancelled)="closeCalendarEventSheet()" />
+    }
   `,
   styles: `
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 1.25rem); }
+    @keyframes slide-up {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .modal-sheet { animation: slide-up 0.25s cubic-bezier(0.32, 0.72, 0, 1); }
   `,
 })
 export class CalendarComponent {
@@ -199,7 +337,14 @@ export class CalendarComponent {
   residency = inject(ResidencyService);
   private google = inject(GoogleCalendarService);
 
+  // ── Editing / sheet state ──────────────────────────────────
   editingEvent = signal<TaggedSchoolEvent | null>(null);
+  editingReminder = signal<ManualReminder | undefined>(undefined);
+  editingCalendarEvent = signal<ManualCalendarEvent | undefined>(undefined);
+  showNewItemMenu = signal(false);
+  showNewReminderSheet = signal(false);
+  showNewCalendarEventSheet = signal(false);
+  selectedDate = signal('');
 
   weekDayOptions = computed<WeekDayOption[]>(() =>
     this.weekDates().map((date) => ({
@@ -208,7 +353,7 @@ export class CalendarComponent {
     }))
   );
 
-  private get today() {
+  private get today(): string {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
@@ -235,7 +380,7 @@ export class CalendarComponent {
 
   isCurrentWeek = computed(() => this.weekOffset() === 0);
 
-  private weekDates = computed(() => {
+  private weekDates = computed<string[]>(() => {
     const monday = this.viewedMonday();
     const dates: string[] = [];
     for (let i = 0; i < 7; i++) {
@@ -251,19 +396,16 @@ export class CalendarComponent {
     const plansMap = this.data.plansMap();
     const googleEvents = this.google.events();
     const filterMode = this.filter();
+    const reminders = this.data.manualReminders();
+    const calEvents = this.data.calendarEvents();
 
-    // Collect events from all children, tagged with child info
     const allTagged: TaggedSchoolEvent[] = [];
     for (const child of children) {
       const plans = plansMap[child.id] ?? [];
       const plan: SavedPlan | null = plans.length > 0 ? plans[plans.length - 1] : null;
       if (!plan) continue;
       for (const e of plan.events) {
-        if (
-          e.category !== 'school_class' &&
-          e.category !== 'information' &&
-          !this.isUkelekse(e)
-        ) {
+        if (e.category !== 'school_class' && e.category !== 'information' && !this.isUkelekse(e)) {
           allTagged.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, _original: e });
         }
       }
@@ -271,15 +413,28 @@ export class CalendarComponent {
 
     return this.weekDates().map((date) => {
       const isWeekend = this.isWeekendDate(date);
-      let schoolEventsForDay = allTagged.filter((e) => e.date === date);
 
+      let schoolEventsForDay = allTagged.filter((e) => e.date === date);
       if (filterMode === 'homework') {
         schoolEventsForDay = schoolEventsForDay.filter((e) => e.category === 'homework');
       } else if (filterMode === 'reminders') {
         schoolEventsForDay = schoolEventsForDay.filter((e) => e.category === 'reminder');
+      } else if (filterMode === 'events') {
+        schoolEventsForDay = [];
       }
 
-      const googleForDay = filterMode === 'all'
+      const manualRemindersForDay: ManualReminder[] = (filterMode === 'all' || filterMode === 'reminders')
+        ? reminders.filter((r) => this.reminderOccursOnDate(r, date))
+        : [];
+
+      const manualEventsForDay: { event: ManualCalendarEvent; isFirstDay: boolean }[] =
+        (filterMode === 'all' || filterMode === 'events')
+          ? calEvents
+              .filter((e) => this.calendarEventOccursOnDate(e, date))
+              .map((e) => ({ event: e, isFirstDay: this.isFirstDayOfOccurrence(e, date) }))
+          : [];
+
+      const googleForDay: GoogleCalendarEvent[] = filterMode === 'all'
         ? googleEvents.filter((e) => e.date === date)
         : [];
 
@@ -291,6 +446,8 @@ export class CalendarComponent {
         residency: this.residency.residencyForDate(date),
         schoolEvents: schoolEventsForDay,
         googleEvents: googleForDay,
+        manualReminders: manualRemindersForDay,
+        manualEvents: manualEventsForDay,
       };
     });
   });
@@ -299,9 +456,8 @@ export class CalendarComponent {
   nextWeek(): void { this.weekOffset.update((o) => o + 1); this.refreshGoogleForWeek(); }
   goToToday(): void { this.weekOffset.set(0); this.refreshGoogleForWeek(); }
 
-  openEditEvent(event: TaggedSchoolEvent): void {
-    this.editingEvent.set(event);
-  }
+  // ── School event editing ───────────────────────────────────
+  openEditEvent(event: TaggedSchoolEvent): void { this.editingEvent.set(event); }
 
   onEventSaved(updated: SchoolEvent): void {
     const original = this.editingEvent();
@@ -317,29 +473,158 @@ export class CalendarComponent {
     this.editingEvent.set(null);
   }
 
-  isUkelekse(event: SchoolEvent): boolean {
-    const title = event.title.toLowerCase();
-    return title.startsWith('ukelekse') || title.includes('hele uken');
+  // ── Manual reminder sheet ─────────────────────────────────
+  openNewReminder(): void {
+    this.showNewItemMenu.set(false);
+    this.editingReminder.set(undefined);
+    this.showNewReminderSheet.set(true);
+  }
+
+  openEditReminder(reminder: ManualReminder): void {
+    this.showNewReminderSheet.set(false);
+    this.editingReminder.set(reminder);
+  }
+
+  onReminderSaved(payload: Omit<ManualReminder, 'id' | 'createdAt'>): void {
+    const editing = this.editingReminder();
+    if (editing) {
+      this.data.updateManualReminder(editing.id, payload);
+    } else {
+      this.data.addManualReminder(payload);
+    }
+    this.closeReminderSheet();
+  }
+
+  onReminderDeleted(): void {
+    const editing = this.editingReminder();
+    if (editing) this.data.deleteManualReminder(editing.id);
+    this.closeReminderSheet();
+  }
+
+  closeReminderSheet(): void {
+    this.editingReminder.set(undefined);
+    this.showNewReminderSheet.set(false);
+  }
+
+  // ── Manual calendar event sheet ───────────────────────────
+  openNewCalendarEvent(): void {
+    this.showNewItemMenu.set(false);
+    this.editingCalendarEvent.set(undefined);
+    this.showNewCalendarEventSheet.set(true);
+  }
+
+  openEditCalendarEvent(event: ManualCalendarEvent): void {
+    this.showNewCalendarEventSheet.set(false);
+    this.editingCalendarEvent.set(event);
+  }
+
+  onCalendarEventSaved(payload: Omit<ManualCalendarEvent, 'id' | 'createdAt'>): void {
+    const editing = this.editingCalendarEvent();
+    if (editing) {
+      this.data.updateCalendarEvent(editing.id, payload);
+    } else {
+      this.data.addCalendarEvent(payload);
+    }
+    this.closeCalendarEventSheet();
+  }
+
+  onCalendarEventDeleted(): void {
+    const editing = this.editingCalendarEvent();
+    if (editing) this.data.deleteCalendarEvent(editing.id);
+    this.closeCalendarEventSheet();
+  }
+
+  closeCalendarEventSheet(): void {
+    this.editingCalendarEvent.set(undefined);
+    this.showNewCalendarEventSheet.set(false);
+  }
+
+  // ── Assigned label helpers ────────────────────────────────
+  getAssignedLabel(assignedTo: AssignedTo[]): string {
+    return assignedTo.map((a) => {
+      if (a.type === 'parent') return a.role;
+      const child = this.data.children().find((c) => c.id === a.childId);
+      return child?.name ?? 'Ukjent';
+    }).join(' · ');
+  }
+
+  getAssignedColor(assignedTo: AssignedTo[]): string {
+    const first = assignedTo[0];
+    if (!first) return '#6B7280';
+    if (first.type === 'parent') return first.role === 'Mamma' ? '#F43F5E' : '#3B82F6';
+    const child = this.data.children().find((c) => c.id === first.childId);
+    return child?.color ?? '#6B7280';
+  }
+
+  // ── Time label helpers ────────────────────────────────────
+  formatManualEventTimeLabel(event: ManualCalendarEvent): string {
+    if (event.isAllDay) {
+      if (event.startDate === event.endDate) return 'Hele dagen';
+      return `Hele dagen · ${formatDateShort(event.startDate)} – ${formatDateShort(event.endDate)}`;
+    }
+    if (event.startDate !== event.endDate) {
+      const start = `${formatDateShort(event.startDate)}${event.startTime ? ' ' + event.startTime : ''}`;
+      const end = `${formatDateShort(event.endDate)}${event.endTime ? ' ' + event.endTime : ''}`;
+      return `${start} – ${end}`;
+    }
+    const start = event.startTime ?? '';
+    const end = event.endTime ? ` – ${event.endTime}` : '';
+    return start + end;
   }
 
   formatEventTimeLabel(event: GoogleCalendarEvent): string {
-    // Multi-day timed event: show full range "DD.MM HH:MM – DD.MM HH:MM"
     if (event.spanStart && event.spanEnd && event.spanStart !== event.spanEnd && event.spanStartTime) {
       const start = `${formatDateShort(event.spanStart)} ${event.spanStartTime}`;
       const end = event.spanEndTime ? ` – ${formatDateShort(event.spanEnd)} ${event.spanEndTime}` : '';
       return start + end;
     }
-    // Single-day timed event
     if (event.startTime) {
       return `${event.startTime}${event.endTime ? ' – ' + event.endTime : ''}`;
     }
     return 'Hele dagen';
   }
 
-  formatTime(dateTime: string): string {
-    try {
-      return new Date(dateTime).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
-    } catch { return ''; }
+  // ── Recurrence helpers ────────────────────────────────────
+  private reminderOccursOnDate(reminder: ManualReminder, date: string): boolean {
+    if (!reminder.recurrence) return reminder.date === date;
+    const startMs = new Date(reminder.date + 'T00:00:00Z').getTime();
+    const checkMs = new Date(date + 'T00:00:00Z').getTime();
+    if (checkMs < startMs) return false;
+    // Must be same day of week
+    if (new Date(reminder.date + 'T00:00:00Z').getUTCDay() !== new Date(date + 'T00:00:00Z').getUTCDay()) return false;
+    const diffWeeks = Math.round((checkMs - startMs) / (7 * 24 * 60 * 60 * 1000));
+    if (reminder.recurrence.type === 'weekly') return true;
+    return diffWeeks % 2 === 0;
+  }
+
+  private calendarEventOccursOnDate(event: ManualCalendarEvent, date: string): boolean {
+    const startMs = new Date(event.startDate + 'T00:00:00Z').getTime();
+    const checkMs = new Date(date + 'T00:00:00Z').getTime();
+    if (checkMs < startMs) return false;
+    const durationDays = Math.round(
+      (new Date(event.endDate + 'T00:00:00Z').getTime() - startMs) / (24 * 60 * 60 * 1000)
+    );
+    if (!event.recurrence) {
+      return event.startDate <= date && date <= event.endDate;
+    }
+    const intervalDays = event.recurrence.type === 'weekly' ? 7 : 14;
+    const diffDays = Math.round((checkMs - startMs) / (24 * 60 * 60 * 1000));
+    const offsetInCycle = diffDays % intervalDays;
+    return offsetInCycle <= durationDays;
+  }
+
+  private isFirstDayOfOccurrence(event: ManualCalendarEvent, date: string): boolean {
+    if (!event.recurrence) return date === event.startDate;
+    const startMs = new Date(event.startDate + 'T00:00:00Z').getTime();
+    const checkMs = new Date(date + 'T00:00:00Z').getTime();
+    const intervalDays = event.recurrence.type === 'weekly' ? 7 : 14;
+    const diffDays = Math.round((checkMs - startMs) / (24 * 60 * 60 * 1000));
+    return diffDays % intervalDays === 0;
+  }
+
+  isUkelekse(event: SchoolEvent): boolean {
+    const title = event.title.toLowerCase();
+    return title.startsWith('ukelekse') || title.includes('hele uken');
   }
 
   private refreshGoogleForWeek(): void {

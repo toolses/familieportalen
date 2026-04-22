@@ -16,6 +16,7 @@ export interface HouseholdMember {
   displayName: string;
   photoURL: string | null;
   role: 'admin' | 'member';
+  parentRole: 'Mamma' | 'Pappa' | null;
   joinedAt: string;
 }
 
@@ -37,6 +38,9 @@ export class HouseholdService {
     if (!uid) return false;
     return this.members().some((m) => m.uid === uid && m.role === 'admin');
   });
+
+  readonly mammaMember = computed(() => this.members().find((m) => m.parentRole === 'Mamma') ?? null);
+  readonly pappaMember = computed(() => this.members().find((m) => m.parentRole === 'Pappa') ?? null);
 
   constructor() {
     const check = setInterval(() => {
@@ -79,6 +83,7 @@ export class HouseholdService {
       displayName: user.displayName ?? user.email ?? 'Ukjent',
       photoURL: user.photoURL,
       role: 'admin',
+      parentRole: null,
       joinedAt: new Date().toISOString(),
     };
 
@@ -134,6 +139,7 @@ export class HouseholdService {
       displayName: user.displayName ?? user.email ?? 'Ukjent',
       photoURL: user.photoURL,
       role: 'member',
+      parentRole: null,
       joinedAt: new Date().toISOString(),
     };
 
@@ -149,6 +155,19 @@ export class HouseholdService {
   }
 
   // ── Member management ─────────────────────────────────────
+
+  async setMemberParentRole(uid: string, role: 'Mamma' | 'Pappa' | null): Promise<void> {
+    const hid = this.householdId();
+    if (!hid) return;
+    // Ensure no other member has the same role
+    const updatedMembers = this.members().map((m) => {
+      if (m.uid === uid) return { ...m, parentRole: role };
+      // Clear the same role from other members
+      if (role !== null && m.parentRole === role) return { ...m, parentRole: null };
+      return m;
+    });
+    await updateDoc(doc(db, 'households', hid), { members: updatedMembers });
+  }
 
   async removeMember(uid: string): Promise<void> {
     const hid = this.householdId();

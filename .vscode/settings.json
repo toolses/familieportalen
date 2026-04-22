@@ -8,6 +8,7 @@
         "npx --yes sharp-cli": true,
         "npx sharp-cli": true,
         "ConvertFrom-Json": true,
-        "npx vitest": true
+        "npx vitest": true,
+        "npm test": true
     }
 }

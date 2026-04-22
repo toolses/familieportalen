@@ -9,6 +9,7 @@ export interface SchoolEvent {
   title: string;
   description: string;
   category: 'school_class' | 'homework' | 'reminder' | 'information';
+  completed?: boolean;
 }
 
 export interface ParseRequest {
@@ -50,6 +51,48 @@ export interface BaseRotation {
 
 export type ResidencyOverrides = { [date: string]: 'Mamma' | 'Pappa' | null };
 
+export type RecurrenceType = 'weekly' | 'biweekly';
+
+export interface RecurrenceRule {
+  type: RecurrenceType;
+}
+
+/** Hvem en påminnelse eller hendelse er knyttet til */
+export type AssignedTo =
+  | { type: 'child'; childId: string }
+  | { type: 'parent'; role: 'Mamma' | 'Pappa' };
+
+export interface ManualReminder {
+  id: string;
+  title: string;
+  description: string;
+  /** ISO-dato for første (eller eneste) forekomst */
+  date: string;
+  /** Klokkeslett i HH:mm format, eller null */
+  time: string | null;
+  isSchoolRelated: boolean;
+  assignedTo: AssignedTo[];
+  recurrence: RecurrenceRule | null;
+  createdAt: string;
+}
+
+export interface ManualCalendarEvent {
+  id: string;
+  title: string;
+  description: string;
+  /** ISO-dato for start */
+  startDate: string;
+  /** ISO-dato for slutt (samme som startDate for enkeltdags-hendelse) */
+  endDate: string;
+  /** HH:mm eller null for heldagshendelse */
+  startTime: string | null;
+  endTime: string | null;
+  isAllDay: boolean;
+  assignedTo: AssignedTo[];
+  recurrence: RecurrenceRule | null;
+  createdAt: string;
+}
+
 export interface FamilyState {
   children: Child[];
   activeChildId: string | null;
@@ -57,4 +100,6 @@ export interface FamilyState {
   plans: { [childId: string]: SavedPlan[] };
   baseRotation: BaseRotation | null;
   residencyOverrides: ResidencyOverrides;
+  manualReminders: ManualReminder[];
+  calendarEvents: ManualCalendarEvent[];
 }

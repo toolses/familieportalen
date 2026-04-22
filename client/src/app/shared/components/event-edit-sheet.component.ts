@@ -53,6 +53,19 @@ export interface WeekDayOption {
         </div>
 
         <div class="space-y-2 pt-1">
+          @if (category === 'homework') {
+            <button (click)="onToggleComplete()"
+                    class="w-full py-3 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                    [class]="completed ? 'bg-gray-100 text-gray-500' : 'bg-green-500 text-white'">
+              @if (completed) {
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Marker som ufullført
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Fullfør
+              }
+            </button>
+          }
           <button (click)="onSave()"
                   [disabled]="!title.trim()"
                   class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-40 active:scale-[0.98] transition-all">
@@ -92,6 +105,7 @@ export class EventEditSheetComponent {
   description = '';
   category: SchoolEvent['category'] = 'homework';
   date = '';
+  completed = false;
 
   constructor() {
     effect(() => {
@@ -100,7 +114,13 @@ export class EventEditSheetComponent {
       this.description = e.description;
       this.category = e.category;
       this.date = e.date;
+      this.completed = e.completed ?? false;
     });
+  }
+
+  onToggleComplete(): void {
+    this.completed = !this.completed;
+    this.onSave();
   }
 
   onSave(): void {
@@ -110,6 +130,7 @@ export class EventEditSheetComponent {
       title: this.title.trim(),
       description: this.description.trim(),
       category: this.category,
+      completed: this.completed || undefined,
     });
   }
 }

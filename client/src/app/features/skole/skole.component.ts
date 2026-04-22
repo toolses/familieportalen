@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { SchoolDataService } from '../../shared/services/school-data.service';
-import { SchoolEvent } from '../school-plan/models/school-plan.models';
+import { SchoolEvent, ManualReminder } from '../school-plan/models/school-plan.models';
 import { getDatesOfWeek, formatDateShort, dayName } from '../../shared/utils/date-utils';
 import { ImageCaptureComponent } from '../school-plan/image-capture.component';
 import { PlanReviewComponent } from '../school-plan/plan-review.component';
@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 import { downscaleBase64Image } from '../../shared/utils/image-utils';
 import { SwipeDirective } from '../../shared/directives/swipe.directive';
 import { EventEditSheetComponent, WeekDayOption } from '../../shared/components/event-edit-sheet.component';
+import { HomeworkItemComponent } from '../../shared/components/homework-item.component';
 
 interface DayInfo {
   date: string;
@@ -23,7 +24,7 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
 @Component({
   selector: 'app-skole',
   standalone: true,
-  imports: [ImageCaptureComponent, PlanReviewComponent, FormsModule, SwipeDirective, EventEditSheetComponent],
+  imports: [ImageCaptureComponent, PlanReviewComponent, FormsModule, SwipeDirective, EventEditSheetComponent, HomeworkItemComponent],
   template: `
     @switch (view()) {
       @case ('WEEK') {
@@ -98,32 +99,41 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
 
             <!-- INFORMATION -->
             @if (informationEvents().length > 0) {
-              <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-                <h3 class="text-sm font-semibold text-emerald-800 mb-3 flex items-center gap-2">
+              <div class="bg-emerald-50 border border-emerald-200 rounded-2xl overflow-hidden">
+                <button (click)="infoExpanded.update(v => !v)"
+                        class="w-full flex items-center gap-2 px-4 py-3 text-left">
                   <!-- Info icon -->
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                  Informasjon
-                </h3>
-                <div class="space-y-2">
-                  @for (event of informationEvents(); track $index) {
-                    <button (click)="openEditEvent(event)"
-                            class="w-full flex gap-3 items-start bg-white/60 rounded-xl p-3 active:bg-white transition-colors text-left">
-                      <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"></div>
-                      <div class="flex-1 min-w-0">
-                        <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
-                        @if (event.description) {
-                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
-                        }
-                      </div>
-                      <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0 mt-0.5">Informasjon</span>
-                    </button>
-                  }
-                </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-700 shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  <span class="text-sm font-semibold text-emerald-800 flex-1">Informasjon</span>
+                  <span class="text-xs text-emerald-600 mr-1">{{ informationEvents().length }}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                       class="text-emerald-600 transition-transform duration-200 shrink-0"
+                       [class.rotate-180]="infoExpanded()">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                @if (infoExpanded()) {
+                  <div class="px-4 pb-4 space-y-2">
+                    @for (event of informationEvents(); track $index) {
+                      <button (click)="openEditEvent(event)"
+                              class="w-full flex gap-3 items-start bg-white/60 rounded-xl p-3 active:bg-white transition-colors text-left">
+                        <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"></div>
+                        <div class="flex-1 min-w-0">
+                          <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
+                          @if (event.description) {
+                            <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                          }
+                        </div>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 shrink-0 mt-0.5">Informasjon</span>
+                      </button>
+                    }
+                  </div>
+                }
               </div>
             }
 
             <!-- REMINDERS -->
-            @if (reminderEvents().length > 0) {
+            @if (reminderEvents().length > 0 || schoolManualReminders().length > 0) {
               <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
                 <h3 class="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
                   <!-- Exclamation icon -->
@@ -144,6 +154,23 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                       <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0 mt-0.5">Påminnelse</span>
                     </button>
                   }
+                  @for (reminder of schoolManualReminders(); track reminder.id) {
+                    <div class="flex gap-3 items-start bg-white/60 rounded-xl p-3">
+                      <div class="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="font-medium text-gray-800 text-sm">{{ reminder.title }}</span>
+                          @if (reminder.time) {
+                            <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
+                          }
+                        </div>
+                        @if (reminder.description) {
+                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
+                        }
+                      </div>
+                      <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0 mt-0.5">Påminnelse</span>
+                    </div>
+                  }
                 </div>
               </div>
             }
@@ -158,22 +185,9 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                 </h3>
                 <div class="space-y-2">
                   @for (event of homeworkEvents(); track $index) {
-                    <button (click)="openEditEvent(event)"
-                            class="w-full flex gap-3 items-start active:bg-blue-50/50 rounded-xl transition-colors text-left">
-                      @if (isUkelekse(event)) {
-                        <!-- Star icon for ukelekse -->
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="text-amber-400 mt-1 shrink-0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                      } @else {
-                        <div class="w-2 h-2 rounded-full bg-blue-400 mt-1.5 shrink-0"></div>
-                      }
-                      <div class="flex-1 min-w-0">
-                        <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
-                        @if (event.description) {
-                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
-                        }
-                      </div>
-                      <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0 mt-0.5">Lekse</span>
-                    </button>
+                    <app-homework-item
+                      [event]="event"
+                      (edit)="openEditEvent(event)" />
                   }
                 </div>
               </div>
@@ -329,6 +343,7 @@ export class SkoleComponent implements OnInit {
   }
 
   view = signal<SkoleView>('WEEK');
+  infoExpanded = signal(false);
   selectedDate = signal('');
   scanError = signal<string | null>(null);
   scanWeekNumber = this.getCurrentISOWeek();
@@ -373,6 +388,13 @@ export class SkoleComponent implements OnInit {
     return plan.events.filter((e) => e.date === date && e.category === 'reminder');
   });
 
+  schoolManualReminders = computed<ManualReminder[]>(() => {
+    const date = this.selectedDate();
+    if (!date) return [];
+    return this.data.manualReminders()
+      .filter((r) => r.isSchoolRelated && this.reminderOccursOnDate(r, date));
+  });
+
   homeworkEvents = computed(() => {
     const plan = this.data.activePlan();
     const date = this.selectedDate();
@@ -409,8 +431,20 @@ export class SkoleComponent implements OnInit {
 
   dayHasReminders(date: string): boolean {
     const plan = this.data.activePlan();
-    if (!plan) return false;
-    return plan.events.some((e) => e.date === date && e.category === 'reminder');
+    const hasSchoolReminder = plan?.events.some((e) => e.date === date && e.category === 'reminder') ?? false;
+    const hasManualReminder = this.data.manualReminders().some((r) => r.isSchoolRelated && this.reminderOccursOnDate(r, date));
+    return hasSchoolReminder || hasManualReminder;
+  }
+
+  private reminderOccursOnDate(reminder: ManualReminder, date: string): boolean {
+    if (!reminder.recurrence) return reminder.date === date;
+    const startMs = new Date(reminder.date + 'T00:00:00Z').getTime();
+    const checkMs = new Date(date + 'T00:00:00Z').getTime();
+    if (checkMs < startMs) return false;
+    if (new Date(reminder.date + 'T00:00:00Z').getUTCDay() !== new Date(date + 'T00:00:00Z').getUTCDay()) return false;
+    const diffWeeks = Math.round((checkMs - startMs) / (7 * 24 * 60 * 60 * 1000));
+    if (reminder.recurrence.type === 'weekly') return true;
+    return diffWeeks % 2 === 0;
   }
 
   isUkelekse(event: SchoolEvent): boolean {
