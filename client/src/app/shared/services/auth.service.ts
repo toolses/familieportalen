@@ -1,7 +1,5 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { initializeApp } from 'firebase/app';
 import {
-  getAuth,
   onAuthStateChanged,
   signInWithPopup,
   signOut as firebaseSignOut,
@@ -9,10 +7,9 @@ import {
   OAuthProvider,
   type User,
 } from 'firebase/auth';
-import { environment } from '../../../environments/environment';
+import { firebaseAuth } from '../../core/firebase';
 
-const firebaseApp = initializeApp(environment.firebase);
-const auth = getAuth(firebaseApp);
+const auth = firebaseAuth;
 
 const ADMIN_UIDS = new Set(['Ou7ByiLJlcRUqYGSkiMDGzrYyJQ2']);
 

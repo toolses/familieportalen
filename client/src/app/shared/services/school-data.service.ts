@@ -1,6 +1,5 @@
 import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
 import {
-  getFirestore,
   doc,
   setDoc,
   onSnapshot,
@@ -8,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { PlanMetadata, SchoolEvent, SavedPlan, Child, FamilyState, BaseRotation, ResidencyOverrides } from '../../features/school-plan/models/school-plan.models';
 import { AuthService } from './auth.service';
+import { firebaseDb as db } from '../../core/firebase';
 
 const CHILD_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981'];
 
@@ -19,9 +19,11 @@ export interface PortalSettings {
 export class SchoolDataService {
   private auth = inject(AuthService);
   private destroyRef = inject(DestroyRef);
-  private db = getFirestore();
   private unsubFirestore: Unsubscribe | null = null;
   private unsubSharedConfig: Unsubscribe | null = null;
+
+  // ── Familie-data-lastet-signal (brukes av splashscreen) ───
+  readonly dataLoaded = signal(false);
 
   // ── Family state ──────────────────────────────────────────
   readonly children = signal<Child[]>([]);
@@ -231,7 +233,7 @@ export class SchoolDataService {
   setGoogleCalendarId(id: string | null): void {
     this.googleCalendarId.set(id);
     const data = JSON.parse(JSON.stringify({ googleCalendarId: id ?? null }));
-    setDoc(doc(this.db, 'config', 'shared'), data, { merge: true }).catch((err) =>
+    setDoc(doc(db, 'config', 'shared'), data, { merge: true }).catch((err) =>
       console.error('Firestore shared config write failed:', err)
     );
   }
@@ -247,7 +249,7 @@ export class SchoolDataService {
     this.residencyOverrides.set({});
     this.activeWeek.set(null);
     this.googleCalendarId.set(null);
-    setDoc(doc(this.db, 'config', 'shared'), { googleCalendarId: null }, { merge: true }).catch(() => {});
+    setDoc(doc(db, 'config', 'shared'), { googleCalendarId: null }, { merge: true }).catch(() => {});
     await this.persistToFirestore();
   }
 
@@ -278,7 +280,7 @@ export class SchoolDataService {
     const data = JSON.parse(JSON.stringify(raw));
 
     try {
-      await setDoc(doc(this.db, 'users', uid), data);
+      await setDoc(doc(db, 'users', uid), data);
     } catch (err) {
       console.error('Firestore write failed:', err);
     }
@@ -289,7 +291,12 @@ export class SchoolDataService {
     if (!uid) return;
 
     this.unsubFirestore?.();
-    this.unsubFirestore = onSnapshot(doc(this.db, 'users', uid), (snap) => {
+    let firstSnapshot = true;
+    this.unsubFirestore = onSnapshot(doc(db, 'users', uid), (snap) => {
+      if (firstSnapshot) {
+        firstSnapshot = false;
+        this.dataLoaded.set(true);
+      }
       if (!snap.exists()) return;
       const state = snap.data() as FamilyState & { activeWeek?: { uke: number; aar: number } | null };
       this.applyState(state);
@@ -310,7 +317,7 @@ export class SchoolDataService {
 
   private subscribeToSharedConfig(): void {
     this.unsubSharedConfig?.();
-    this.unsubSharedConfig = onSnapshot(doc(this.db, 'config', 'shared'), (snap) => {
+    this.unsubSharedConfig = onSnapshot(doc(db, 'config', 'shared'), (snap) => {
       if (!snap.exists()) {
         this.sharedConfigLoaded.set(true);
         return;

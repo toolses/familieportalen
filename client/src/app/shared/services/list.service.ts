@@ -1,6 +1,5 @@
 import { Injectable, signal, inject, DestroyRef } from '@angular/core';
 import {
-  getFirestore,
   collection,
   doc,
   setDoc,
@@ -10,6 +9,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { AuthService } from './auth.service';
+import { firebaseDb as db } from '../../core/firebase';
 
 export interface ListItem {
   id: string;
@@ -29,7 +29,6 @@ export interface AppList {
 export class ListService {
   private auth = inject(AuthService);
   private destroyRef = inject(DestroyRef);
-  private db = getFirestore();
   private unsub: Unsubscribe | null = null;
 
   readonly lists = signal<AppList[]>([]);
@@ -52,11 +51,11 @@ export class ListService {
   }
 
   private get listsRef() {
-    return collection(this.db, 'users', this.uid, 'lists');
+    return collection(db, 'users', this.uid, 'lists');
   }
 
   private listDocRef(listId: string) {
-    return doc(this.db, 'users', this.uid, 'lists', listId);
+    return doc(db, 'users', this.uid, 'lists', listId);
   }
 
   private subscribeToLists(): void {

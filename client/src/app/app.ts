@@ -1,17 +1,31 @@
 import { Component, inject, effect } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { AuthService } from './shared/services/auth.service';
+import { SchoolDataService } from './shared/services/school-data.service';
 
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="min-h-screen bg-gray-50 flex flex-col">
+    <div class="h-dvh bg-gray-50 flex flex-col overflow-hidden">
       <!-- Header -->
       @if (auth.isLoggedIn()) {
-        <header class="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50 safe-top">
+        <header class="shrink-0 bg-white border-b border-gray-200 px-4 py-3 z-50 safe-top">
           <div class="max-w-2xl mx-auto flex items-center justify-between">
-            <h1 class="text-lg font-bold text-gray-900">Familieportalen</h1>
+            <div class="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="28" height="28" style="border-radius:6px">
+                  <defs><linearGradient id="hbg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#4f46e5"/><stop offset="100%" style="stop-color:#7c3aed"/></linearGradient></defs>
+                  <rect width="512" height="512" rx="96" ry="96" fill="url(#hbg)"/>
+                  <polygon points="256,88 432,248 80,248" fill="white" opacity="0.95"/>
+                  <rect x="112" y="248" width="288" height="188" rx="4" fill="white" opacity="0.95"/>
+                  <rect x="210" y="320" width="92" height="116" rx="10" fill="#4f46e5"/>
+                  <circle cx="290" cy="382" r="7" fill="white" opacity="0.8"/>
+                  <rect x="136" y="284" width="68" height="60" rx="8" fill="#4f46e5" opacity="0.7"/>
+                  <rect x="308" y="284" width="68" height="60" rx="8" fill="#4f46e5" opacity="0.7"/>
+                  <rect x="316" y="126" width="40" height="80" rx="4" fill="white" opacity="0.9"/>
+                </svg>
+                <h1 class="text-lg font-bold text-gray-900">Familieportalen</h1>
+              </div>
             <div class="flex items-center gap-3">
               @if (auth.photoURL()) {
                 <img [src]="auth.photoURL()" alt="" class="w-8 h-8 rounded-full" referrerpolicy="no-referrer" />
@@ -23,13 +37,13 @@ import { AuthService } from './shared/services/auth.service';
       }
 
       <!-- Content -->
-      <main class="flex-1 max-w-2xl mx-auto w-full">
+      <main class="flex-1 min-h-0 overflow-y-auto max-w-2xl mx-auto w-full">
         <router-outlet />
       </main>
 
       <!-- Bottom nav (only when logged in) -->
       @if (auth.isLoggedIn()) {
-        <nav class="bg-white border-t border-gray-200 sticky bottom-0 z-50 safe-bottom">
+        <nav class="shrink-0 bg-white border-t border-gray-200 z-50 safe-bottom">
           <div class="max-w-2xl mx-auto flex">
             <a #rla1="routerLinkActive" routerLink="/" routerLinkActive [routerLinkActiveOptions]="{ exact: true }"
                class="flex-1 flex flex-col items-center py-2 transition-colors border-t-2"
@@ -78,19 +92,31 @@ import { AuthService } from './shared/services/auth.service';
 })
 export class App {
   auth = inject(AuthService);
+  private data = inject(SchoolDataService);
   private router = inject(Router);
 
   constructor() {
+    // Fjern splash når auth er klar OG (ikke innlogget ELLER data er lastet fra Firestore/cache).
+    // Dette sikrer at dashbordet allerede har data når splashen forsvinner.
     effect(() => {
-      if (!this.auth.loading()) {
-        const splash = document.getElementById('splash');
-        if (splash) {
-          splash.style.opacity = '0';
-          splash.style.pointerEvents = 'none';
-          setTimeout(() => splash.remove(), 350);
-        }
+      const authReady = !this.auth.loading();
+      const dataReady = !this.auth.isLoggedIn() || this.data.dataLoaded();
+      if (authReady && dataReady) {
+        this.hideSplash();
       }
     });
+
+    // Sikkerhetsventil: fjern splashen etter maks 4 sekunder uansett hva
+    setTimeout(() => this.hideSplash(), 4000);
+  }
+
+  private hideSplash(): void {
+    const splash = document.getElementById('splash');
+    if (splash) {
+      splash.style.opacity = '0';
+      splash.style.pointerEvents = 'none';
+      setTimeout(() => splash.remove(), 350);
+    }
   }
 
   async logout() {

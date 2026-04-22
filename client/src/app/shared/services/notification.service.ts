@@ -3,9 +3,10 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { AuthService } from './auth.service';
 import { environment } from '../../../environments/environment';
+import { firebaseDb as db } from '../../core/firebase';
 
 export type PushPermissionState = 'default' | 'granted' | 'denied' | 'unsupported';
 
@@ -87,7 +88,6 @@ export class NotificationService {
 
       if (!token) return;
 
-      const db = getFirestore(getApp());
       const userRef = doc(db, 'users', user.uid);
       const snap = await getDoc(userRef);
       const existingTokens: string[] = snap.data()?.['fcmTokens'] ?? [];
