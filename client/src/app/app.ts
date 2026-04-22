@@ -98,7 +98,9 @@ import { SchoolDataService } from './shared/services/school-data.service';
   `,
   styles: `
     .safe-top { padding-top: env(safe-area-inset-top); }
-    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    /* Halv safe-area nederst – gir nok klaring til iOS home indicator
+       uten å reservere hele 34px som tomt hvitt felt under navbar. */
+    .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) / 2); }
   `,
 })
 export class App {
