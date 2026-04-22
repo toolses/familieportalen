@@ -59,10 +59,18 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
           @for (item of activeItems(); track item.id) {
             <div class="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm transition-all duration-300"
                  [class.opacity-60]="swipingId() === item.id">
-              <button (click)="toggleItem(lst.id, item.id, true)"
-                      class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0 active:scale-[0.85] transition-all hover:border-blue-400">
-              </button>
-              <span class="flex-1 text-sm text-gray-800 leading-snug">{{ item.text }}</span>
+              @if (pendingIds().has(item.id)) {
+                <button (click)="toggleItem(lst.id, item.id, true)"
+                        class="w-6 h-6 rounded-full bg-blue-400 border-2 border-blue-400 flex items-center justify-center shrink-0 active:scale-[0.85] transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>
+              } @else {
+                <button (click)="toggleItem(lst.id, item.id, true)"
+                        class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0 active:scale-[0.85] transition-all hover:border-blue-400">
+                </button>
+              }
+              <span class="flex-1 text-sm leading-snug"
+                    [class]="pendingIds().has(item.id) ? 'text-gray-400 line-through' : 'text-gray-800'">{{ item.text }}</span>
               <button (click)="deleteItem(lst.id, item.id)"
                       class="p-1.5 text-gray-300 hover:text-red-400 active:scale-[0.85] transition-all rounded-lg shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -177,6 +185,8 @@ export class ListDetailComponent {
   readonly showCompleted = signal(true);
   readonly swipingId = signal<string | null>(null);
   readonly isResetModalOpen = signal(false);
+  readonly pendingIds = signal<Set<string>>(new Set());
+  private readonly pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   readonly list = computed<AppList | null>(() => {
     const id = this.route.snapshot.paramMap.get('id');
@@ -211,8 +221,24 @@ export class ListDetailComponent {
     return `${done} av ${total} fullført`;
   }
 
-  async toggleItem(listId: string, itemId: string, completed: boolean): Promise<void> {
-    await this.listService.toggleItem(listId, itemId, completed);
+  toggleItem(listId: string, itemId: string, completed: boolean): void {
+    if (completed) {
+      if (this.pendingIds().has(itemId)) {
+        clearTimeout(this.pendingTimers.get(itemId));
+        this.pendingTimers.delete(itemId);
+        this.pendingIds.update(s => { const n = new Set(s); n.delete(itemId); return n; });
+        return;
+      }
+      this.pendingIds.update(s => new Set([...s, itemId]));
+      const timer = setTimeout(async () => {
+        this.pendingTimers.delete(itemId);
+        this.pendingIds.update(s => { const n = new Set(s); n.delete(itemId); return n; });
+        await this.listService.toggleItem(listId, itemId, true);
+      }, 1000);
+      this.pendingTimers.set(itemId, timer);
+    } else {
+      this.listService.toggleItem(listId, itemId, false);
+    }
   }
 
   async addItem(listId: string): Promise<void> {
