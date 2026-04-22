@@ -40,27 +40,21 @@ type AssignedToOption =
           <!-- Dato -->
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">Dato</label>
-            <div class="relative">
-              <input #datePicker type="date" [(ngModel)]="date"
-                     class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
-              <button type="button" (click)="datePicker.showPicker()"
-                      class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
-                @if (date) { {{ formatDateFull(date) }} } @else { <span class="text-gray-400">––.––.––––</span> }
-              </button>
-            </div>
+            <label class="relative block w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer">
+              @if (date) { {{ formatDateFull(date) }} } @else { <span class="text-gray-400">––.––.––––</span> }
+              <input type="date" [(ngModel)]="date"
+                     class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+            </label>
           </div>
 
           <!-- Klokkeslett (valgfritt) -->
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">Klokkeslett (valgfritt)</label>
-            <div class="relative">
-              <input #timePicker type="time" [(ngModel)]="time"
-                     class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
-              <button type="button" (click)="timePicker.showPicker()"
-                      class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
-                @if (time) { {{ time }} } @else { <span class="text-gray-400">––:––</span> }
-              </button>
-            </div>
+            <label class="relative block w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer">
+              @if (time) { {{ time }} } @else { <span class="text-gray-400">––:––</span> }
+              <input type="time" [(ngModel)]="time"
+                     class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+            </label>
           </div>
 
           <!-- Skolerelatert -->

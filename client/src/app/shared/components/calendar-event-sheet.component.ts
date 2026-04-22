@@ -55,26 +55,20 @@ type AssignedToOption =
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-gray-500 mb-1">Fra dato</label>
-              <div class="relative">
-                <input #startDatePicker type="date" [(ngModel)]="startDate" (ngModelChange)="onStartDateChange()"
-                       class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
-                <button type="button" (click)="startDatePicker.showPicker()"
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                  @if (startDate) { {{ formatDateFull(startDate) }} } @else { <span class="text-gray-400">––.––.––––</span> }
-                </button>
-              </div>
+              <label class="relative block w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus-within:ring-2 focus-within:ring-indigo-400 cursor-pointer">
+                @if (startDate) { {{ formatDateFull(startDate) }} } @else { <span class="text-gray-400">––.––.––––</span> }
+                <input type="date" [(ngModel)]="startDate" (ngModelChange)="onStartDateChange()"
+                       class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+              </label>
             </div>
             @if (!isAllDay) {
               <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Fra tid</label>
-                <div class="relative">
-                  <input #startTimePicker type="time" [(ngModel)]="startTime"
-                         class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
-                  <button type="button" (click)="startTimePicker.showPicker()"
-                          class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                    @if (startTime) { {{ startTime }} } @else { <span class="text-gray-400">––:––</span> }
-                  </button>
-                </div>
+                <label class="relative block w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus-within:ring-2 focus-within:ring-indigo-400 cursor-pointer">
+                  @if (startTime) { {{ startTime }} } @else { <span class="text-gray-400">––:––</span> }
+                  <input type="time" [(ngModel)]="startTime"
+                         class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                </label>
               </div>
             }
           </div>
@@ -83,26 +77,20 @@ type AssignedToOption =
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-gray-500 mb-1">Til dato</label>
-              <div class="relative">
-                <input #endDatePicker type="date" [(ngModel)]="endDate" [min]="startDate"
-                       class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
-                <button type="button" (click)="endDatePicker.showPicker()"
-                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                  @if (endDate) { {{ formatDateFull(endDate) }} } @else { <span class="text-gray-400">––.––.––––</span> }
-                </button>
-              </div>
+              <label class="relative block w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus-within:ring-2 focus-within:ring-indigo-400 cursor-pointer">
+                @if (endDate) { {{ formatDateFull(endDate) }} } @else { <span class="text-gray-400">––.––.––––</span> }
+                <input type="date" [(ngModel)]="endDate" [min]="startDate"
+                       class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+              </label>
             </div>
             @if (!isAllDay) {
               <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Til tid</label>
-                <div class="relative">
-                  <input #endTimePicker type="time" [(ngModel)]="endTime"
-                         class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
-                  <button type="button" (click)="endTimePicker.showPicker()"
-                          class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                    @if (endTime) { {{ endTime }} } @else { <span class="text-gray-400">––:––</span> }
-                  </button>
-                </div>
+                <label class="relative block w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus-within:ring-2 focus-within:ring-indigo-400 cursor-pointer">
+                  @if (endTime) { {{ endTime }} } @else { <span class="text-gray-400">––:––</span> }
+                  <input type="time" [(ngModel)]="endTime"
+                         class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                </label>
               </div>
             }
           </div>

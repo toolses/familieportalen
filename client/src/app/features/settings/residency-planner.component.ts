@@ -52,17 +52,14 @@ interface GridCell {
           <p class="text-xs font-semibold text-gray-700">Konfigurer fast rotasjon</p>
 
           <div class="space-y-1">
-            <label class="block text-xs text-gray-500">Startdato (typisk en fredag)</label>
-            <div class="relative">
-              <input #setupDatePicker type="date"
-                     class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+            <span class="block text-xs text-gray-500">Startdato (typisk en fredag)</span>
+            <label class="relative block w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-left bg-white focus-within:ring-2 focus-within:ring-gray-400 cursor-pointer">
+              @if (setupDate()) { {{ formatDateFull(setupDate()) }} } @else { <span class="text-gray-400">––.––.––––</span> }
+              <input type="date"
+                     class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                      [ngModel]="setupDate()"
                      (ngModelChange)="setupDate.set($event)" />
-              <button type="button" (click)="setupDatePicker.showPicker()"
-                      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-gray-400">
-                @if (setupDate()) { {{ formatDateFull(setupDate()) }} } @else { <span class="text-gray-400">––.––.––––</span> }
-              </button>
-            </div>
+            </label>
           </div>
 
           <div class="space-y-1">
