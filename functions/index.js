@@ -71,3 +71,6 @@ app.use((err, req, res, next) => {
 // invoker: 'public' is required for Firebase Hosting rewrites to reach the function.
 // App-level auth (verifyFirebaseToken) still enforces user authentication.
 export const api = onRequest({ region: 'europe-west1', memory: '512MiB', invoker: 'public' }, app);
+
+// ── Scheduled push notifications ────────────────────────────────────────────
+export { notifyEveBeforeSwitch, notifyOnSwitchDay } from './notifications/scheduled-notifications.js';
