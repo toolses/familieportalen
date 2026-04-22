@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { ResidencyService } from '../../shared/services/residency.service';
 import { BaseRotation } from '../school-plan/models/school-plan.models';
+import { formatDateFull } from '../../shared/utils/date-utils';
 
 const MONTH_NAMES = [
   'Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni',
@@ -30,7 +31,7 @@ interface GridCell {
           <div>
             <span class="text-xs font-semibold text-green-700">Rotasjon aktiv – annenhver uke</span>
             <p class="text-xs text-green-600 mt-0.5">
-              Starter hos <strong>{{ rot.startLabel }}</strong> fra {{ rot.startDate }}
+              Starter hos <strong>{{ rot.startLabel }}</strong> fra {{ formatDateFull(rot.startDate) }}
             </p>
           </div>
           <div class="flex gap-3 shrink-0 ml-2">
@@ -52,10 +53,16 @@ interface GridCell {
 
           <div class="space-y-1">
             <label class="block text-xs text-gray-500">Startdato (typisk en fredag)</label>
-            <input type="date"
-                   [ngModel]="setupDate()"
-                   (ngModelChange)="setupDate.set($event)"
-                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white" />
+            <div class="relative">
+              <input #setupDatePicker type="date"
+                     class="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+                     [ngModel]="setupDate()"
+                     (ngModelChange)="setupDate.set($event)" />
+              <button type="button" (click)="setupDatePicker.showPicker()"
+                      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-gray-400">
+                @if (setupDate()) { {{ formatDateFull(setupDate()) }} } @else { <span class="text-gray-400">––.––.––––</span> }
+              </button>
+            </div>
           </div>
 
           <div class="space-y-1">
@@ -152,6 +159,7 @@ interface GridCell {
 export class ResidencyPlannerComponent {
   readonly data = inject(SchoolDataService);
   readonly residency = inject(ResidencyService);
+  readonly formatDateFull = formatDateFull;
 
   readonly dayHeaders = ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø'];
 

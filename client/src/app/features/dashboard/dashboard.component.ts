@@ -7,6 +7,8 @@ import { SchoolEvent, Child, ManualReminder, ManualCalendarEvent, AssignedTo } f
 import { formatDateShort, dayName } from '../../shared/utils/date-utils';
 import { SwipeDirective } from '../../shared/directives/swipe.directive';
 import { EventEditSheetComponent } from '../../shared/components/event-edit-sheet.component';
+import { ReminderSheetComponent } from '../../shared/components/reminder-sheet.component';
+import { CalendarEventSheetComponent } from '../../shared/components/calendar-event-sheet.component';
 import { HomeworkItemComponent } from '../../shared/components/homework-item.component';
 
 const ACTION_KEYWORDS = ['husk', 'ta med', 'matpakke', 'penger', 'utstyr', 'lade', 'sekk', 'tursekk', 'gymtøy', 'gymsko', 'badetøy', 'skiftetøy', 'turklær', 'gymtøy'];
@@ -26,7 +28,7 @@ interface ChildUkelekser {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [SwipeDirective, RouterLink, EventEditSheetComponent, HomeworkItemComponent],
+  imports: [SwipeDirective, RouterLink, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
   template: `
     @if (data.children().length === 0) {
       <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -146,7 +148,7 @@ interface ChildUkelekser {
               </h3>
               <div class="space-y-2">
                 @for (event of quickActions(); track $index) {
-                  <div class="flex gap-3 items-start bg-white/80 rounded-xl p-3 shadow-xs">
+                  <button (click)="openEditEvent(event)" class="w-full flex gap-3 items-start bg-white/80 rounded-xl p-3 shadow-xs text-left active:bg-white transition-colors">
                     <div class="w-2.5 h-2.5 rounded-full mt-1 shrink-0 ring-2 ring-amber-200"
                          [style.background]="event.childColor"></div>
                     <div class="flex-1 min-w-0">
@@ -156,10 +158,10 @@ interface ChildUkelekser {
                       }
                       <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                     </div>
-                  </div>
+                  </button>
                 }
                 @for (reminder of todayManualReminders(); track reminder.id) {
-                  <div class="flex gap-3 items-start bg-white/80 rounded-xl p-3 shadow-xs">
+                  <button (click)="openEditReminder(reminder)" class="w-full flex gap-3 items-start bg-white/80 rounded-xl p-3 shadow-xs text-left active:bg-white transition-colors">
                     <div class="w-2.5 h-2.5 rounded-full mt-1 shrink-0 ring-2 ring-amber-200"
                          [style.background]="getAssignedColor(reminder.assignedTo)"></div>
                     <div class="flex-1 min-w-0">
@@ -176,7 +178,7 @@ interface ChildUkelekser {
                         {{ getAssignedLabel(reminder.assignedTo) }}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 }
               </div>
             </div>
@@ -228,7 +230,7 @@ interface ChildUkelekser {
               </h3>
               <div class="space-y-2">
                 @for (event of todayManualEvents(); track event.id) {
-                  <div class="flex gap-3 items-start bg-white/60 rounded-xl p-3">
+                  <button (click)="openEditCalendarEvent(event)" class="w-full flex gap-3 items-start bg-white/60 rounded-xl p-3 text-left active:bg-white transition-colors">
                     <div class="w-1 self-stretch rounded-full shrink-0"
                          [style.background]="getAssignedColor(event.assignedTo)"></div>
                     <div class="flex-1 min-w-0">
@@ -241,7 +243,7 @@ interface ChildUkelekser {
                         {{ getAssignedLabel(event.assignedTo) }}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 }
               </div>
             </div>
@@ -293,46 +295,92 @@ interface ChildUkelekser {
 
           <!-- Morgendagens påminnelser -->
           @if (tomorrowReminders().length > 0 || tomorrowManualReminders().length > 0) {
-            <div class="border border-gray-200 rounded-2xl p-4">
-              <h3 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                I morgen
-              </h3>
-              <div class="space-y-1.5">
-                @for (event of tomorrowReminders(); track $index) {
-                  <button (click)="openEditEvent(event)" class="w-full flex gap-2.5 items-start text-left active:opacity-60 transition-opacity">
-                    <div class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" [style.background]="event.childColor"></div>
-                    <div class="flex-1 min-w-0">
-                      <span class="text-sm text-gray-500">{{ event.title }}</span>
-                      @if (event.description) {
-                        <p class="text-xs text-gray-400 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
-                      }
-                      <p class="text-[10px] font-semibold mt-0.5" [style.color]="event.childColor">{{ event.childName }}</p>
-                    </div>
-                  </button>
-                }
-                @for (reminder of tomorrowManualReminders(); track reminder.id) {
-                  <div class="w-full flex gap-2.5 items-start">
-                    <div class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
-                         [style.background]="getAssignedColor(reminder.assignedTo)"></div>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-1.5">
-                        <span class="text-sm text-gray-500">{{ reminder.title }}</span>
-                        @if (reminder.time) {
-                          <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
+            @if (showTomorrowProminent()) {
+              <!-- Etter 18:00 og ingen dagens påminnelser: fremhevet amber-design -->
+              <div class="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
+                <h3 class="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                  Husk i morgen!
+                </h3>
+                <div class="space-y-2">
+                  @for (event of tomorrowReminders(); track $index) {
+                    <button (click)="openEditEvent(event)" class="w-full flex gap-3 items-start bg-white/80 rounded-xl p-3 shadow-xs text-left active:bg-white transition-colors">
+                      <div class="w-2.5 h-2.5 rounded-full mt-1 shrink-0 ring-2 ring-amber-200"
+                           [style.background]="event.childColor"></div>
+                      <div class="flex-1 min-w-0">
+                        <span class="font-semibold text-gray-800 text-sm">{{ event.title }}</span>
+                        @if (event.description) {
+                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                         }
+                        <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                       </div>
-                      @if (reminder.description) {
-                        <p class="text-xs text-gray-400 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
-                      }
-                      <p class="text-[10px] font-semibold mt-0.5" [style.color]="getAssignedColor(reminder.assignedTo)">
-                        {{ getAssignedLabel(reminder.assignedTo) }}
-                      </p>
-                    </div>
-                  </div>
-                }
+                    </button>
+                  }
+                  @for (reminder of tomorrowManualReminders(); track reminder.id) {
+                    <button (click)="openEditReminder(reminder)" class="w-full flex gap-3 items-start bg-white/80 rounded-xl p-3 shadow-xs text-left active:bg-white transition-colors">
+                      <div class="w-2.5 h-2.5 rounded-full mt-1 shrink-0 ring-2 ring-amber-200"
+                           [style.background]="getAssignedColor(reminder.assignedTo)"></div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="font-semibold text-gray-800 text-sm">{{ reminder.title }}</span>
+                          @if (reminder.time) {
+                            <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
+                          }
+                        </div>
+                        @if (reminder.description) {
+                          <p class="text-sm text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
+                        }
+                        <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(reminder.assignedTo)">
+                          {{ getAssignedLabel(reminder.assignedTo) }}
+                        </p>
+                      </div>
+                    </button>
+                  }
+                </div>
               </div>
-            </div>
+            } @else {
+              <!-- Standard subdued design -->
+              <div class="border border-gray-200 rounded-2xl p-4">
+                <h3 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  I morgen
+                </h3>
+                <div class="space-y-1.5">
+                  @for (event of tomorrowReminders(); track $index) {
+                    <button (click)="openEditEvent(event)" class="w-full flex gap-2.5 items-start text-left active:opacity-60 transition-opacity">
+                      <div class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" [style.background]="event.childColor"></div>
+                      <div class="flex-1 min-w-0">
+                        <span class="text-sm text-gray-500">{{ event.title }}</span>
+                        @if (event.description) {
+                          <p class="text-xs text-gray-400 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                        }
+                        <p class="text-[10px] font-semibold mt-0.5" [style.color]="event.childColor">{{ event.childName }}</p>
+                      </div>
+                    </button>
+                  }
+                  @for (reminder of tomorrowManualReminders(); track reminder.id) {
+                    <button (click)="openEditReminder(reminder)" class="w-full flex gap-2.5 items-start text-left active:opacity-60 transition-opacity">
+                      <div class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                           [style.background]="getAssignedColor(reminder.assignedTo)"></div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-sm text-gray-500">{{ reminder.title }}</span>
+                          @if (reminder.time) {
+                            <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
+                          }
+                        </div>
+                        @if (reminder.description) {
+                          <p class="text-xs text-gray-400 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
+                        }
+                        <p class="text-[10px] font-semibold mt-0.5" [style.color]="getAssignedColor(reminder.assignedTo)">
+                          {{ getAssignedLabel(reminder.assignedTo) }}
+                        </p>
+                      </div>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
           }
 
           <!-- Ukelekser per barn (sammenleggbar, default lukket) -->
@@ -374,6 +422,24 @@ interface ChildUkelekser {
         (deleted)="onEventDeleted()"
         (cancelled)="editingTaggedEvent.set(null)" />
     }
+
+    @if (editingReminder() !== undefined) {
+      <app-reminder-sheet
+        [reminder]="editingReminder() ?? null"
+        [defaultDate]="selectedDate()"
+        (saved)="onReminderSaved($event)"
+        (deleted)="onReminderDeleted()"
+        (cancelled)="editingReminder.set(undefined)" />
+    }
+
+    @if (editingCalendarEvent() !== undefined) {
+      <app-calendar-event-sheet
+        [event]="editingCalendarEvent() ?? null"
+        [defaultDate]="selectedDate()"
+        (saved)="onCalendarEventSaved($event)"
+        (deleted)="onCalendarEventDeleted()"
+        (cancelled)="editingCalendarEvent.set(undefined)" />
+    }
   `,
   styles: `
     .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -390,13 +456,15 @@ export class DashboardComponent {
   private dayOffset = signal(0);
   showOverridePanel = signal(false);
   editingTaggedEvent = signal<TaggedEvent | null>(null);
+  editingReminder = signal<ManualReminder | undefined>(undefined);
+  editingCalendarEvent = signal<ManualCalendarEvent | undefined>(undefined);
 
   private get todayIso() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
-  private selectedDate = computed(() => {
+  selectedDate = computed(() => {
     const base = new Date(this.todayIso + 'T00:00:00');
     base.setDate(base.getDate() + this.dayOffset());
     return base.getFullYear() + '-' + String(base.getMonth() + 1).padStart(2, '0') + '-' + String(base.getDate()).padStart(2, '0');
@@ -465,8 +533,14 @@ export class DashboardComponent {
     return result;
   });
 
+  /** Etter kl. 18 på valgt dag (kun gjeldende for «i dag») */
+  isAfter18 = computed<boolean>(() => this.isToday() && new Date().getHours() >= 18);
+
   quickActions = computed<TaggedEvent[]>(() => {
-    return this.allTodayEvents().filter((e) => e.category === 'reminder');
+    const all = this.allTodayEvents().filter((e) => e.category === 'reminder');
+    // SchoolEvent har ikke tidspunkt → etter 18:00 skjules alle skoleplan-påminnelser
+    if (this.isAfter18()) return [];
+    return all;
   });
 
   reminderEvents = computed<TaggedEvent[]>(() => {
@@ -477,6 +551,11 @@ export class DashboardComponent {
   regularHomeworkEvents = computed<TaggedEvent[]>(() => {
     return this.allTodayEvents().filter((e) => e.category === 'homework');
   });
+
+  /** Vis «I morgen» med fremhevet amber-design når det er etter 18 og ingen dagspåminnelser */
+  showTomorrowProminent = computed<boolean>(
+    () => this.isAfter18() && this.quickActions().length === 0 && this.todayManualReminders().length === 0
+  );
 
   tomorrowReminders = computed<TaggedEvent[]>(() => {
     const children = this.data.children();
@@ -498,7 +577,10 @@ export class DashboardComponent {
 
   todayManualReminders = computed<ManualReminder[]>(() => {
     const date = this.selectedDate();
-    return this.data.manualReminders().filter((r) => this.reminderOccursOnDate(r, date));
+    const all = this.data.manualReminders().filter((r) => this.reminderOccursOnDate(r, date));
+    // Etter 18:00 vises kun manuelle påminnelser med klokkeslett fra 18:00
+    if (this.isAfter18()) return all.filter((r) => r.time != null && r.time >= '18:00');
+    return all;
   });
 
   todayManualEvents = computed<ManualCalendarEvent[]>(() => {
@@ -570,6 +652,38 @@ export class DashboardComponent {
 
   openEditEvent(event: TaggedEvent): void {
     this.editingTaggedEvent.set(event);
+  }
+
+  openEditReminder(reminder: ManualReminder): void {
+    this.editingReminder.set(reminder);
+  }
+
+  onReminderSaved(payload: Omit<ManualReminder, 'id' | 'createdAt'>): void {
+    const editing = this.editingReminder();
+    if (editing) this.data.updateManualReminder(editing.id, payload);
+    this.editingReminder.set(undefined);
+  }
+
+  onReminderDeleted(): void {
+    const editing = this.editingReminder();
+    if (editing) this.data.deleteManualReminder(editing.id);
+    this.editingReminder.set(undefined);
+  }
+
+  openEditCalendarEvent(event: ManualCalendarEvent): void {
+    this.editingCalendarEvent.set(event);
+  }
+
+  onCalendarEventSaved(payload: Omit<ManualCalendarEvent, 'id' | 'createdAt'>): void {
+    const editing = this.editingCalendarEvent();
+    if (editing) this.data.updateCalendarEvent(editing.id, payload);
+    this.editingCalendarEvent.set(undefined);
+  }
+
+  onCalendarEventDeleted(): void {
+    const editing = this.editingCalendarEvent();
+    if (editing) this.data.deleteCalendarEvent(editing.id);
+    this.editingCalendarEvent.set(undefined);
   }
 
   openEditEventForChild(child: Child, event: SchoolEvent): void {

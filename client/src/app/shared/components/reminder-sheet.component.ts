@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ManualReminder, AssignedTo, RecurrenceRule } from '../../features/school-plan/models/school-plan.models';
 import { SchoolDataService } from '../services/school-data.service';
 import { HouseholdService } from '../services/household.service';
+import { formatDateFull } from '../utils/date-utils';
 
 type AssignedToOption =
   | { type: 'parent'; role: 'Mamma' | 'Pappa' }
@@ -39,15 +40,27 @@ type AssignedToOption =
           <!-- Dato -->
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">Dato</label>
-            <input type="date" [(ngModel)]="date"
-                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            <div class="relative">
+              <input #datePicker type="date" [(ngModel)]="date"
+                     class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
+              <button type="button" (click)="datePicker.showPicker()"
+                      class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                @if (date) { {{ formatDateFull(date) }} } @else { <span class="text-gray-400">––.––.––––</span> }
+              </button>
+            </div>
           </div>
 
           <!-- Klokkeslett (valgfritt) -->
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">Klokkeslett (valgfritt)</label>
-            <input type="time" [(ngModel)]="time"
-                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            <div class="relative">
+              <input #timePicker type="time" [(ngModel)]="time"
+                     class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
+              <button type="button" (click)="timePicker.showPicker()"
+                      class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                @if (time) { {{ time }} } @else { <span class="text-gray-400">––:––</span> }
+              </button>
+            </div>
           </div>
 
           <!-- Skolerelatert -->
@@ -143,6 +156,7 @@ export class ReminderSheetComponent {
 
   private data = inject(SchoolDataService);
   private household = inject(HouseholdService);
+  readonly formatDateFull = formatDateFull;
 
   // Form state
   title = '';

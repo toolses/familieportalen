@@ -32,6 +32,14 @@ export function formatDateShort(isoDate: string): string {
 }
 
 /**
+ * Formats an ISO date string (YYYY-MM-DD) to full Norwegian display format (DD.MM.YYYY).
+ */
+export function formatDateFull(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}.${month}.${year}`;
+}
+
+/**
  * Returns the Norwegian day name for an ISO date string.
  */
 export function dayName(isoDate: string): string {

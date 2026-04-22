@@ -1,5 +1,6 @@
-import { Component, inject, effect } from '@angular/core';
+import { Component, inject, effect, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
+import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { AuthService } from './shared/services/auth.service';
 import { SchoolDataService } from './shared/services/school-data.service';
 
@@ -7,7 +8,7 @@ import { SchoolDataService } from './shared/services/school-data.service';
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="h-dvh bg-gray-50 flex flex-col overflow-hidden">
+    <div class="fixed inset-0 bg-gray-50 flex flex-col overflow-hidden">
       <!-- Header -->
       @if (auth.isLoggedIn()) {
         <header class="shrink-0 bg-white border-b border-gray-200 px-4 py-3 z-50 safe-top">
@@ -36,8 +37,18 @@ import { SchoolDataService } from './shared/services/school-data.service';
         </header>
       }
 
+      <!-- Oppdateringsvarsel -->
+      @if (updateAvailable()) {
+        <div class="shrink-0 bg-blue-600 text-white px-4 py-2 z-50 flex items-center justify-between gap-3">
+          <span class="text-sm">Ny versjon er tilgjengelig</span>
+          <button (click)="applyUpdate()" class="text-sm font-semibold underline whitespace-nowrap">
+            Oppdater nå
+          </button>
+        </div>
+      }
+
       <!-- Content -->
-      <main class="flex-1 min-h-0 overflow-y-auto max-w-2xl mx-auto w-full">
+      <main class="flex-1 min-h-0 overflow-y-auto overscroll-y-contain max-w-2xl mx-auto w-full">
         <router-outlet />
       </main>
 
@@ -94,8 +105,19 @@ export class App {
   auth = inject(AuthService);
   private data = inject(SchoolDataService);
   private router = inject(Router);
+  private swUpdate = inject(SwUpdate);
+
+  updateAvailable = signal(false);
 
   constructor() {
+    if (this.swUpdate.isEnabled) {
+      this.swUpdate.versionUpdates.subscribe((evt) => {
+        if (evt.type === 'VERSION_READY') {
+          this.updateAvailable.set(true);
+        }
+      });
+    }
+
     // Fjern splash når auth er klar OG (ikke innlogget ELLER data er lastet fra Firestore/cache).
     // Dette sikrer at dashbordet allerede har data når splashen forsvinner.
     effect(() => {
@@ -122,5 +144,10 @@ export class App {
   async logout() {
     await this.auth.signOut();
     this.router.navigate(['/login']);
+  }
+
+  async applyUpdate() {
+    await this.swUpdate.activateUpdate();
+    document.location.reload();
   }
 }

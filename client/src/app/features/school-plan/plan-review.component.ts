@@ -54,8 +54,14 @@ type Tab = 'informasjon' | 'beskjeder' | 'lekser' | 'fag';
                   <option value="school_class">Fag</option>
                 </select>
                 <div class="flex items-center gap-2 shrink-0">
-                  <input type="date" [(ngModel)]="event.date"
-                         class="text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-0.5 bg-white" />
+                  <div class="relative shrink-0">
+                    <input #datePicker type="date" [(ngModel)]="event.date"
+                           class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
+                    <button type="button" (click)="datePicker.showPicker()"
+                            class="text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-0.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                      @if (event.date) { {{ formatDate(event.date) }} } @else { <span class="text-gray-400">Dato</span> }
+                    </button>
+                  </div>
                   <button (click)="deleteEvent(event)"
                           class="text-gray-300 hover:text-red-400 transition-colors active:scale-90"
                           title="Slett hendelse">

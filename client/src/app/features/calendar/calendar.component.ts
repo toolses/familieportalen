@@ -11,6 +11,7 @@ import { CalendarEventSheetComponent } from '../../shared/components/calendar-ev
 import { HomeworkItemComponent } from '../../shared/components/homework-item.component';
 
 type FilterMode = 'all' | 'homework' | 'reminders' | 'events';
+type ViewMode = 'week' | 'month';
 
 interface TaggedSchoolEvent extends SchoolEvent {
   childName: string;
@@ -36,69 +37,293 @@ interface CalendarDay {
   standalone: true,
   imports: [SwipeDirective, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
   template: `
-    <div class="px-4 pt-2 pb-24 space-y-3" appSwipe (swipeLeft)="nextWeek()" (swipeRight)="prevWeek()">
+    <div class="px-4 pt-2 pb-24 space-y-3" appSwipe
+         (swipeLeft)="viewMode() === 'week' ? nextWeek() : nextMonth()"
+         (swipeRight)="viewMode() === 'week' ? prevWeek() : prevMonth()">
       <!-- Header -->
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-bold text-gray-800">Kalender</h2>
-        @if (residency.todayResidency(); as label) {
-          <div class="px-3 py-1.5 rounded-full text-sm font-semibold"
-               [class]="label === 'Mamma'
-                 ? 'bg-rose-100 text-rose-700'
-                 : 'bg-blue-100 text-blue-700'">
-            Hos {{ label }}
+        <div class="flex items-center gap-2">
+          <!-- View toggle -->
+          <div class="flex bg-gray-100 rounded-xl p-0.5">
+            <button (click)="viewMode.set('week')"
+                    class="px-3 py-1 text-xs font-medium rounded-lg transition-all"
+                    [class]="viewMode() === 'week' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'">
+              Uke
+            </button>
+            <button (click)="viewMode.set('month'); selectedMonthDate.set(today)"
+                    class="px-3 py-1 text-xs font-medium rounded-lg transition-all"
+                    [class]="viewMode() === 'month' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'">
+              Måned
+            </button>
           </div>
-        }
+          @if (residency.todayResidency(); as label) {
+            <div class="px-3 py-1.5 rounded-full text-sm font-semibold"
+                 [class]="label === 'Mamma'
+                   ? 'bg-rose-100 text-rose-700'
+                   : 'bg-blue-100 text-blue-700'">
+              Hos {{ label }}
+            </div>
+          }
+        </div>
       </div>
 
-      <!-- Week Navigation -->
-      <div class="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm">
-        <button (click)="prevWeek()"
-                class="p-2 rounded-xl hover:bg-gray-100 active:scale-[0.95] transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-800 text-sm">Uke {{ weekNumber() }}</span>
-          <span class="text-gray-400 text-sm">{{ weekRangeLabel() }}</span>
-        </div>
-        <div class="flex items-center gap-1">
-          @if (!isCurrentWeek()) {
-            <button (click)="goToToday()"
-                    class="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 active:scale-[0.95] transition-all">
-              I dag
-            </button>
-          }
-          <button (click)="nextWeek()"
+      @if (viewMode() === 'week') {
+        <!-- Week Navigation -->
+        <div class="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm">
+          <button (click)="prevWeek()"
                   class="p-2 rounded-xl hover:bg-gray-100 active:scale-[0.95] transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-gray-800 text-sm">Uke {{ weekNumber() }}</span>
+            <span class="text-gray-400 text-sm">{{ weekRangeLabel() }}</span>
+          </div>
+          <div class="flex items-center gap-1">
+            @if (!isCurrentWeek()) {
+              <button (click)="goToToday()"
+                      class="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 active:scale-[0.95] transition-all">
+                I dag
+              </button>
+            }
+            <button (click)="nextWeek()"
+                    class="p-2 rounded-xl hover:bg-gray-100 active:scale-[0.95] transition-all">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+          <button (click)="filter.set('all')"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
+                  [class]="filter() === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'">
+            Alle
+          </button>
+          <button (click)="filter.set('homework')"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
+                  [class]="filter() === 'homework' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'">
+            Lekser
+          </button>
+          <button (click)="filter.set('reminders')"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
+                  [class]="filter() === 'reminders' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-500'">
+            Påminnelser
+          </button>
+          <button (click)="filter.set('events')"
+                  class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
+                  [class]="filter() === 'events' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500'">
+            Hendelser
           </button>
         </div>
-      </div>
+      } @else {
+        <!-- Month Navigation -->
+        <div class="flex items-center justify-between bg-white rounded-2xl p-3 shadow-sm">
+          <button (click)="prevMonth()"
+                  class="p-2 rounded-xl hover:bg-gray-100 active:scale-[0.95] transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-gray-800 text-sm capitalize">{{ monthLabel() }}</span>
+          </div>
+          <div class="flex items-center gap-1">
+            @if (monthOffset() !== 0) {
+              <button (click)="goToTodayMonth()"
+                      class="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 active:scale-[0.95] transition-all">
+                I dag
+              </button>
+            }
+            <button (click)="nextMonth()"
+                    class="p-2 rounded-xl hover:bg-gray-100 active:scale-[0.95] transition-all">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
 
-      <!-- Filter -->
-      <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-        <button (click)="filter.set('all')"
-                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
-                [class]="filter() === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'">
-          Alle
-        </button>
-        <button (click)="filter.set('homework')"
-                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
-                [class]="filter() === 'homework' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'">
-          Lekser
-        </button>
-        <button (click)="filter.set('reminders')"
-                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
-                [class]="filter() === 'reminders' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-500'">
-          Påminnelser
-        </button>
-        <button (click)="filter.set('events')"
-                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0"
-                [class]="filter() === 'events' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500'">
-          Hendelser
-        </button>
-      </div>
+        <!-- Month grid -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm">
+          <!-- Day-of-week headers -->
+          <div class="grid grid-cols-7 mb-2">
+            @for (h of ['Ma','Ti','On','To','Fr','Lø','Sø']; track h) {
+              <div class="text-center text-[10px] font-semibold text-gray-400">{{ h }}</div>
+            }
+          </div>
+          <!-- Day cells -->
+          <div class="grid grid-cols-7 gap-y-1">
+            @for (cell of monthGridCells(); track cell.date ?? $index) {
+              @if (cell.date) {
+                <button (click)="selectMonthDay(cell.date)"
+                        class="flex flex-col items-center py-1 rounded-xl transition-all active:scale-95"
+                        [class]="cell.isToday
+                          ? 'bg-blue-600 text-white'
+                          : selectedMonthDate() === cell.date
+                            ? 'bg-gray-800 text-white'
+                            : cell.isCurrentMonth
+                              ? 'text-gray-800'
+                              : 'text-gray-300'">
+                  <span class="text-xs font-medium leading-tight">{{ cell.dayNumber }}</span>
+                  <!-- Event dots -->
+                  <div class="flex gap-0.5 mt-0.5 h-1.5 items-center justify-center">
+                    @for (dot of cell.dots; track $index) {
+                      <span class="w-1 h-1 rounded-full shrink-0"
+                            [style.background]="cell.isToday ? 'white' : dot"></span>
+                    }
+                  </div>
+                  <!-- Residency bar -->
+                  @if (cell.residency) {
+                    <span class="w-3 h-0.5 rounded-full mt-0.5"
+                          [class]="cell.residency === 'Mamma' ? 'bg-rose-300' : 'bg-blue-300'"
+                          [class.hidden]="cell.isToday"></span>
+                  }
+                </button>
+              } @else {
+                <div></div>
+              }
+            }
+          </div>
+        </div>
+
+        <!-- Selected day events -->
+        @if (selectedMonthDayData(); as day) {
+          <div class="space-y-2">
+            <div class="flex items-center gap-2 pt-1 px-1">
+              @if (day.residency) {
+                <span class="w-2 h-2 rounded-full shrink-0"
+                      [class]="day.residency === 'Mamma' ? 'bg-rose-400' : 'bg-blue-400'"></span>
+              }
+              <span class="text-sm font-semibold text-gray-800">{{ day.label }}</span>
+              @if (day.residency) {
+                <span class="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                      [class]="day.residency === 'Mamma' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'">
+                  {{ day.residency }}
+                </span>
+              }
+            </div>
+
+            @if (day.schoolEvents.length === 0 && day.googleEvents.length === 0 && day.manualReminders.length === 0 && day.manualEvents.length === 0) {
+              <div class="text-center py-4 text-gray-300 text-xs">
+                Ingen hendelser denne dagen
+              </div>
+            }
+
+            <!-- Påminnelser fra skoleplan -->
+            @for (event of day.schoolEvents; track $index) {
+              @if (event.category === 'reminder') {
+                <button (click)="openEditEvent(event)"
+                        class="w-full flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3 text-left active:bg-amber-100 transition-colors">
+                  <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" [style.background]="event.childColor"></div>
+                  <div class="flex-1 min-w-0">
+                    <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
+                    @if (event.description) {
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                    }
+                    <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
+                  </div>
+                  <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
+                </button>
+              }
+            }
+
+            @for (reminder of day.manualReminders; track reminder.id) {
+              <button (click)="openEditReminder(reminder)"
+                      class="w-full flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3 text-left active:bg-amber-100 transition-colors">
+                <div class="w-2 h-2 rounded-full mt-1.5 shrink-0"
+                     [style.background]="getAssignedColor(reminder.assignedTo)"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-gray-800 text-sm">{{ reminder.title }}</span>
+                    @if (reminder.time) {
+                      <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
+                    }
+                  </div>
+                  @if (reminder.description) {
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
+                  }
+                  <div class="flex items-center gap-2 mt-1">
+                    <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(reminder.assignedTo)">
+                      {{ getAssignedLabel(reminder.assignedTo) }}
+                    </p>
+                    @if (reminder.recurrence) {
+                      <span class="text-[10px] text-gray-400">
+                        @if (reminder.recurrence.type === 'weekly') { Hver uke } @else { Annenhver uke }
+                      </span>
+                    }
+                    @if (reminder.isSchoolRelated) {
+                      <span class="text-[10px] text-indigo-500 font-medium">Skole</span>
+                    }
+                  </div>
+                </div>
+                <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
+              </button>
+            }
+
+            <!-- Lekser -->
+            @for (event of day.schoolEvents; track $index) {
+              @if (event.category === 'homework') {
+                <app-homework-item
+                  [event]="event"
+                  [childName]="event.childName"
+                  [childColor]="event.childColor"
+                  (edit)="openEditEvent(event)" />
+              }
+            }
+
+            <!-- Manuelle hendelser -->
+            @for (item of day.manualEvents; track item.event.id) {
+              <button (click)="openEditCalendarEvent(item.event)"
+                      class="w-full flex gap-3 items-start bg-indigo-50 rounded-xl p-3 text-left active:bg-indigo-100 transition-colors"
+                      [style.border-left]="'3px solid ' + getAssignedColor(item.event.assignedTo)">
+                <div class="flex-1 min-w-0">
+                  <span class="font-medium text-gray-800 text-sm">{{ item.event.title }}</span>
+                  <p class="text-xs text-gray-400 mt-0.5">{{ formatManualEventTimeLabel(item.event) }}</p>
+                  @if (item.event.description) {
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ item.event.description }}</p>
+                  }
+                  <div class="flex items-center gap-2 mt-1">
+                    <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(item.event.assignedTo)">
+                      {{ getAssignedLabel(item.event.assignedTo) }}
+                    </p>
+                    @if (item.event.recurrence) {
+                      <span class="text-[10px] text-gray-400">
+                        @if (item.event.recurrence.type === 'weekly') { Hver uke } @else { Annenhver uke }
+                      </span>
+                    }
+                  </div>
+                </div>
+                <span class="text-[10px] text-indigo-600 font-medium bg-indigo-100 px-1.5 py-0.5 rounded shrink-0">Hendelse</span>
+              </button>
+            }
+
+            <!-- Google Calendar hendelser -->
+            @for (event of day.googleEvents; track event.id) {
+              <div class="flex gap-3 items-start bg-white border border-gray-200 rounded-xl p-3 shadow-xs"
+                   style="border-left: 3px solid #4285F4;">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <svg width="12" height="12" viewBox="0 0 24 24" class="shrink-0">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    <span class="font-medium text-gray-800 text-sm">{{ event.summary }}</span>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
+                  @if (event.description) {
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                  }
+                  @if (event.location) {
+                    <p class="text-xs text-gray-400">{{ event.location }}</p>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
 
       <!-- Day list -->
+      @if (viewMode() === 'week') {
       <div class="space-y-1">
         @for (day of calendarDays(); track day.date) {
           <div class="sticky top-0 z-10">
@@ -246,6 +471,7 @@ interface CalendarDay {
           </div>
         }
       </div>
+      } <!-- end @if week view -->
     </div>
 
     <!-- FAB: Legg til -->
@@ -353,13 +579,15 @@ export class CalendarComponent {
     }))
   );
 
-  private get today(): string {
+  get today(): string {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
   filter = signal<FilterMode>('all');
+  viewMode = signal<ViewMode>('week');
   weekOffset = signal(0);
+  monthOffset = signal(0);
 
   private viewedMonday = computed(() => {
     const today = new Date(this.today + 'T00:00:00Z');
@@ -390,6 +618,125 @@ export class CalendarComponent {
     }
     return dates;
   });
+
+  // ── Month view ─────────────────────────────────────────────
+  private viewedMonth = computed(() => {
+    const today = new Date(this.today + 'T00:00:00Z');
+    return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + this.monthOffset(), 1));
+  });
+
+  monthLabel = computed(() => {
+    const d = this.viewedMonth();
+    const names = ['januar','februar','mars','april','mai','juni','juli','august','september','oktober','november','desember'];
+    return names[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+  });
+
+  monthGridCells = computed<{ date: string; dayNumber: number; isToday: boolean; isCurrentMonth: boolean; residency: 'Mamma' | 'Pappa' | null; dots: string[] }[]>(() => {
+    const start = this.viewedMonth();
+    const year = start.getUTCFullYear();
+    const month = start.getUTCMonth();
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const firstDow = (start.getUTCDay() || 7) - 1; // 0=Mon
+
+    const children = this.data.children();
+    const plansMap = this.data.plansMap();
+    const reminders = this.data.manualReminders();
+    const calEvents = this.data.calendarEvents();
+    const googleEvents = this.google.events();
+
+    const allTagged: TaggedSchoolEvent[] = [];
+    for (const child of children) {
+      const plans = plansMap[child.id] ?? [];
+      const plan: SavedPlan | null = plans.length > 0 ? plans[plans.length - 1] : null;
+      if (!plan) continue;
+      for (const e of plan.events) {
+        if (e.category !== 'school_class' && e.category !== 'information' && !this.isUkelekse(e)) {
+          allTagged.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, _original: e });
+        }
+      }
+    }
+
+    const cells: { date: string; dayNumber: number; isToday: boolean; isCurrentMonth: boolean; residency: 'Mamma' | 'Pappa' | null; dots: string[] }[] = [];
+
+    // Padding cells before first day
+    for (let i = 0; i < firstDow; i++) {
+      cells.push({ date: '', dayNumber: 0, isToday: false, isCurrentMonth: false, residency: null, dots: [] });
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dots: string[] = [];
+
+      const schoolEvts = allTagged.filter((e) => e.date === date);
+      for (const e of schoolEvts) {
+        if (dots.length < 3) dots.push(e.childColor);
+      }
+      const hasReminder = reminders.some((r) => this.reminderOccursOnDate(r, date));
+      if (hasReminder && dots.length < 3) dots.push('#F59E0B');
+      const hasCalEvt = calEvents.some((e) => this.calendarEventOccursOnDate(e, date));
+      if (hasCalEvt && dots.length < 3) dots.push('#6366F1');
+      const hasGoogle = googleEvents.some((e) => e.date === date);
+      if (hasGoogle && dots.length < 3) dots.push('#4285F4');
+
+      cells.push({
+        date,
+        dayNumber: d,
+        isToday: date === this.today,
+        isCurrentMonth: true,
+        residency: this.residency.residencyForDate(date),
+        dots,
+      });
+    }
+
+    return cells;
+  });
+
+  selectedMonthDate = signal<string>(this.today);
+
+  selectedMonthDayData = computed<CalendarDay | null>(() => {
+    const date = this.selectedMonthDate();
+    if (!date) return null;
+    const children = this.data.children();
+    const plansMap = this.data.plansMap();
+    const googleEvents = this.google.events();
+    const reminders = this.data.manualReminders();
+    const calEvents = this.data.calendarEvents();
+
+    const allTagged: TaggedSchoolEvent[] = [];
+    for (const child of children) {
+      const plans = plansMap[child.id] ?? [];
+      const plan: SavedPlan | null = plans.length > 0 ? plans[plans.length - 1] : null;
+      if (!plan) continue;
+      for (const e of plan.events) {
+        if (e.category !== 'school_class' && e.category !== 'information' && !this.isUkelekse(e)) {
+          allTagged.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, _original: e });
+        }
+      }
+    }
+
+    return {
+      date,
+      label: this.capitalize(dayName(date)) + ' ' + formatDateShort(date),
+      isToday: date === this.today,
+      isWeekend: this.isWeekendDate(date),
+      residency: this.residency.residencyForDate(date),
+      schoolEvents: allTagged.filter((e) => e.date === date),
+      googleEvents: googleEvents.filter((e) => e.date === date),
+      manualReminders: reminders.filter((r) => this.reminderOccursOnDate(r, date)),
+      manualEvents: calEvents
+        .filter((e) => this.calendarEventOccursOnDate(e, date))
+        .map((e) => ({ event: e, isFirstDay: this.isFirstDayOfOccurrence(e, date) })),
+    };
+  });
+
+  prevMonth(): void { this.monthOffset.update((o) => o - 1); this.selectedMonthDate.set(''); }
+  nextMonth(): void { this.monthOffset.update((o) => o + 1); this.selectedMonthDate.set(''); }
+  goToTodayMonth(): void { this.monthOffset.set(0); this.selectedMonthDate.set(this.today); }
+
+  selectMonthDay(date: string): void {
+    this.selectedMonthDate.set(date);
+  }
+
 
   calendarDays = computed<CalendarDay[]>(() => {
     const children = this.data.children();

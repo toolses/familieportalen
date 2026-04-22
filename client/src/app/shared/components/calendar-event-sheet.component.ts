@@ -2,6 +2,7 @@ import { Component, input, output, effect, inject, computed } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { ManualCalendarEvent, AssignedTo, RecurrenceRule } from '../../features/school-plan/models/school-plan.models';
 import { SchoolDataService } from '../services/school-data.service';
+import { formatDateFull } from '../utils/date-utils';
 
 type AssignedToOption =
   | { type: 'parent'; role: 'Mamma' | 'Pappa' }
@@ -54,14 +55,26 @@ type AssignedToOption =
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-gray-500 mb-1">Fra dato</label>
-              <input type="date" [(ngModel)]="startDate" (ngModelChange)="onStartDateChange()"
-                     class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              <div class="relative">
+                <input #startDatePicker type="date" [(ngModel)]="startDate" (ngModelChange)="onStartDateChange()"
+                       class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
+                <button type="button" (click)="startDatePicker.showPicker()"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                  @if (startDate) { {{ formatDateFull(startDate) }} } @else { <span class="text-gray-400">––.––.––––</span> }
+                </button>
+              </div>
             </div>
             @if (!isAllDay) {
               <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Fra tid</label>
-                <input type="time" [(ngModel)]="startTime"
-                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                <div class="relative">
+                  <input #startTimePicker type="time" [(ngModel)]="startTime"
+                         class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
+                  <button type="button" (click)="startTimePicker.showPicker()"
+                          class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    @if (startTime) { {{ startTime }} } @else { <span class="text-gray-400">––:––</span> }
+                  </button>
+                </div>
               </div>
             }
           </div>
@@ -70,14 +83,26 @@ type AssignedToOption =
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-gray-500 mb-1">Til dato</label>
-              <input type="date" [(ngModel)]="endDate" [min]="startDate"
-                     class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              <div class="relative">
+                <input #endDatePicker type="date" [(ngModel)]="endDate" [min]="startDate"
+                       class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
+                <button type="button" (click)="endDatePicker.showPicker()"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                  @if (endDate) { {{ formatDateFull(endDate) }} } @else { <span class="text-gray-400">––.––.––––</span> }
+                </button>
+              </div>
             </div>
             @if (!isAllDay) {
               <div>
                 <label class="block text-xs font-medium text-gray-500 mb-1">Til tid</label>
-                <input type="time" [(ngModel)]="endTime"
-                       class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                <div class="relative">
+                  <input #endTimePicker type="time" [(ngModel)]="endTime"
+                         class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
+                  <button type="button" (click)="endTimePicker.showPicker()"
+                          class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    @if (endTime) { {{ endTime }} } @else { <span class="text-gray-400">––:––</span> }
+                  </button>
+                </div>
               </div>
             }
           </div>
@@ -159,6 +184,7 @@ export class CalendarEventSheetComponent {
   cancelled = output<void>();
 
   private data = inject(SchoolDataService);
+  readonly formatDateFull = formatDateFull;
 
   // Form state
   title = '';

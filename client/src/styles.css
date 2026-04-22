@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+/* === iOS PWA-fiksing === */
+
+/* Forhindrer at body/window scroller → holder header og navbar på plass */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  /* Matcher splash-gradienten – forhindrer hvit stripe ved oppstart */
+  background-color: #4f46e5;
+  /* Fjerner grå tap-highlight på iOS */
+  -webkit-tap-highlight-color: transparent;
+  /* Skarpere font-rendering */
+  -webkit-font-smoothing: antialiased;
+}
+
 /* Forhindrer automatisk zoom på iOS når man klikker i input-felt.
    iOS zoomer inn når font-size < 16px på et fokuserbart element. */
 @media (hover: none) and (pointer: coarse) {
