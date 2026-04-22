@@ -112,6 +112,34 @@ type ConfirmMode = 'delete-child' | 'clear-all';
         }
       </div>
 
+      <!-- Admin: Push-varsler test -->
+      @if (auth.isAdmin()) {
+        <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3 border border-indigo-100">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Admin – Test varsler</h3>
+            <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
+          </div>
+          <p class="text-sm text-gray-500">Send et test-varsel til alle dine registrerte enheter.</p>
+          @if (testPushResult()) {
+            <div class="text-sm rounded-xl px-3 py-2"
+                 [class]="testPushResult()!.ok ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-700'">
+              {{ testPushResult()!.message }}
+            </div>
+          }
+          <button (click)="sendTestPush()"
+                  [disabled]="testPushLoading()"
+                  class="flex items-center gap-2 w-full justify-center py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium active:scale-[0.98] transition-all disabled:opacity-40">
+            @if (testPushLoading()) {
+              <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              Sender...
+            } @else {
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              Send test-varsel
+            }
+          </button>
+        </div>
+      }
+
       <!-- Samvaersplan -->
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
         <div>
@@ -361,6 +389,8 @@ export class SettingsComponent {
   saved = signal(false);
   googleConnectError = signal<string | null>(null);
   pushLoading = signal(false);
+  testPushLoading = signal(false);
+  testPushResult = signal<{ ok: boolean; message: string } | null>(null);
 
   modalOpen = signal(false);
   editingChild = signal<Child | null>(null);
@@ -463,6 +493,21 @@ export class SettingsComponent {
       await this.notifications.requestPermission();
     } finally {
       this.pushLoading.set(false);
+    }
+  }
+
+  async sendTestPush() {
+    this.testPushLoading.set(true);
+    this.testPushResult.set(null);
+    try {
+      const res = await this.notifications.sendTestNotification();
+      const sent = res.sent ?? 0;
+      const msg = res.message ?? `Sendt til ${sent} enhet${sent !== 1 ? 'er' : ''}.`;
+      this.testPushResult.set({ ok: true, message: msg });
+    } catch {
+      this.testPushResult.set({ ok: false, message: 'Feil: Kunne ikke sende test-varsel.' });
+    } finally {
+      this.testPushLoading.set(false);
     }
   }
 

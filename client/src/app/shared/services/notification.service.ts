@@ -1,4 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
@@ -10,6 +12,7 @@ export type PushPermissionState = 'default' | 'granted' | 'denied' | 'unsupporte
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private auth = inject(AuthService);
+  private http = inject(HttpClient);
 
   /** Reflekterer nåværende tillatelsestatus, oppdateres etter kall til requestPermission() */
   readonly permissionState = signal<PushPermissionState>(this.currentPermission());
@@ -101,5 +104,18 @@ export class NotificationService {
   private currentPermission(): PushPermissionState {
     if (!('Notification' in window)) return 'unsupported';
     return Notification.permission as PushPermissionState;
+  }
+
+  /**
+   * Sender et test-varsel til den innloggede brukeren (kun for admins).
+   * Kaller POST /api/notifications/test på backend.
+   */
+  async sendTestNotification(): Promise<{ sent: number; failed: number; message?: string }> {
+    return firstValueFrom(
+      this.http.post<{ sent: number; failed: number; message?: string }>(
+        '/api/notifications/test',
+        {}
+      )
+    );
   }
 }
