@@ -6,7 +6,12 @@
   },
   "scripts": {
     "serve": "firebase emulators:start --only functions",
-    "deploy": "firebase deploy --only functions"
+    "deploy": "firebase deploy --only functions",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "vitest": {
+    "environment": "node"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -16,5 +21,8 @@
     "firebase-functions": "^7.2.5",
     "googleapis": "^171.4.0",
     "groq-sdk": "^0.9.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.5"
   }
 }
