@@ -129,19 +129,6 @@ export class HouseholdService {
 
     const user = this.auth.user()!;
 
-    // Sjekk at brukeren ikke allerede er med
-    const householdSnap = await getDoc(doc(db, 'households', hid));
-    if (!householdSnap.exists()) throw new Error('Husstanden finnes ikke lenger.');
-    const existingUids = (householdSnap.data() as { memberUids?: string[] }).memberUids ?? [];
-    if (existingUids.includes(user.uid)) {
-      // Allerede med — bare bytt lokal peker
-      await setDoc(doc(db, 'users', user.uid), { householdId: hid }, { merge: true });
-      this.unsub?.();
-      this.householdId.set(hid);
-      this.subscribeToHousehold(hid);
-      return;
-    }
-
     const me: HouseholdMember = {
       uid: user.uid,
       displayName: user.displayName ?? user.email ?? 'Ukjent',
