@@ -9,6 +9,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { AuthService } from './auth.service';
+import { HouseholdService } from './household.service';
 import { firebaseDb as db } from '../../core/firebase';
 
 export interface ListItem {
@@ -28,6 +29,7 @@ export interface AppList {
 @Injectable({ providedIn: 'root' })
 export class ListService {
   private auth = inject(AuthService);
+  private household = inject(HouseholdService);
   private destroyRef = inject(DestroyRef);
   private unsub: Unsubscribe | null = null;
 
@@ -35,27 +37,27 @@ export class ListService {
 
   constructor() {
     const checkAuth = setInterval(() => {
-      if (!this.auth.loading()) {
+      if (!this.auth.loading() && this.household.ready()) {
         clearInterval(checkAuth);
         if (this.auth.isLoggedIn()) {
           this.subscribeToLists();
         }
       }
-    }, 100);
+    }, 50);
 
     this.destroyRef.onDestroy(() => this.unsub?.());
   }
 
-  private get uid(): string {
-    return this.auth.user()!.uid;
+  private get householdId(): string {
+    return this.household.householdId()!;
   }
 
   private get listsRef() {
-    return collection(db, 'users', this.uid, 'lists');
+    return collection(db, 'households', this.householdId, 'lists');
   }
 
   private listDocRef(listId: string) {
-    return doc(db, 'users', this.uid, 'lists', listId);
+    return doc(db, 'households', this.householdId, 'lists', listId);
   }
 
   private subscribeToLists(): void {

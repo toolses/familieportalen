@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { PlanMetadata, SchoolEvent, SavedPlan, Child, FamilyState, BaseRotation, ResidencyOverrides } from '../../features/school-plan/models/school-plan.models';
 import { AuthService } from './auth.service';
+import { HouseholdService } from './household.service';
 import { firebaseDb as db } from '../../core/firebase';
 
 const CHILD_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981'];
@@ -18,6 +19,7 @@ export interface PortalSettings {
 @Injectable({ providedIn: 'root' })
 export class SchoolDataService {
   private auth = inject(AuthService);
+  private household = inject(HouseholdService);
   private destroyRef = inject(DestroyRef);
   private unsubFirestore: Unsubscribe | null = null;
   private unsubSharedConfig: Unsubscribe | null = null;
@@ -63,17 +65,16 @@ export class SchoolDataService {
   }));
 
   constructor() {
-    // Subscribe to Firestore when user is logged in
-    // Use an effect-like pattern: check auth state periodically
+    // Vent til HouseholdService er klar (har hentet/opprettet husstand-ID) før vi abonnerer
     const checkAuth = setInterval(() => {
-      if (!this.auth.loading()) {
+      if (!this.auth.loading() && this.household.ready()) {
         clearInterval(checkAuth);
         if (this.auth.isLoggedIn()) {
           this.subscribeToFirestore();
           this.subscribeToSharedConfig();
         }
       }
-    }, 100);
+    }, 50);
 
     this.destroyRef.onDestroy(() => {
       this.unsubFirestore?.();
@@ -271,8 +272,8 @@ export class SchoolDataService {
   }
 
   private async persistToFirestore(): Promise<void> {
-    const uid = this.auth.user()?.uid;
-    if (!uid) return;
+    const hid = this.household.householdId();
+    if (!hid) return;
 
     const state = this.getState();
     const raw = { ...state, activeWeek: this.activeWeek(), updatedAt: new Date().toISOString() };
@@ -280,19 +281,20 @@ export class SchoolDataService {
     const data = JSON.parse(JSON.stringify(raw));
 
     try {
-      await setDoc(doc(db, 'users', uid), data);
+      // merge: true for å ikke overskrive household-metadata (members, inviteCode, osv.)
+      await setDoc(doc(db, 'households', hid), data, { merge: true });
     } catch (err) {
       console.error('Firestore write failed:', err);
     }
   }
 
   private subscribeToFirestore(): void {
-    const uid = this.auth.user()?.uid;
-    if (!uid) return;
+    const hid = this.household.householdId();
+    if (!hid) return;
 
     this.unsubFirestore?.();
     let firstSnapshot = true;
-    this.unsubFirestore = onSnapshot(doc(db, 'users', uid), (snap) => {
+    this.unsubFirestore = onSnapshot(doc(db, 'households', hid), (snap) => {
       if (firstSnapshot) {
         firstSnapshot = false;
         this.dataLoaded.set(true);

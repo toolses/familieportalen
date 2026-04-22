@@ -6,6 +6,7 @@ import { ResidencyPlannerComponent } from './residency-planner.component';
 import { Child } from '../school-plan/models/school-plan.models';
 import { NotificationService } from '../../shared/services/notification.service';
 import { AuthService } from '../../shared/services/auth.service';
+import { HouseholdService } from '../../shared/services/household.service';
 
 const PRESET_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
 
@@ -73,6 +74,66 @@ type ConfirmMode = 'delete-child' | 'clear-all';
         }
       </div>
       }
+
+      <!-- Husstand -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+        <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Husstand</h3>
+
+        @if (household.ready()) {
+          <!-- Invitasjonskode -->
+          <div class="space-y-1">
+            <p class="text-xs text-gray-500">Del denne koden med familiemedlemmer</p>
+            <button (click)="copyInviteCode()"
+                    class="flex items-center gap-3 w-full bg-gray-50 rounded-xl px-4 py-3 active:bg-gray-100 transition-colors">
+              <span class="flex-1 font-mono text-2xl font-bold tracking-widest text-gray-800">
+                {{ household.inviteCode() }}
+              </span>
+              <span class="text-xs font-semibold shrink-0 transition-colors"
+                    [class]="codeCopied() ? 'text-green-600' : 'text-blue-600'">
+                {{ codeCopied() ? '✓ Kopiert' : 'Kopier' }}
+              </span>
+            </button>
+          </div>
+
+          <!-- Medlemsliste -->
+          <div class="space-y-2">
+            @for (member of household.members(); track member.uid) {
+              <div class="flex items-center gap-3">
+                @if (member.photoURL) {
+                  <img [src]="member.photoURL" class="w-8 h-8 rounded-full shrink-0" referrerpolicy="no-referrer" />
+                } @else {
+                  <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm shrink-0">
+                    {{ member.displayName.charAt(0).toUpperCase() }}
+                  </div>
+                }
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-800 truncate">{{ member.displayName }}</p>
+                  <p class="text-xs text-gray-400">{{ member.role === 'admin' ? 'Admin' : 'Medlem' }}</p>
+                </div>
+                @if (household.isAdmin() && member.uid !== auth.user()?.uid) {
+                  @if (member.role === 'member') {
+                    <button (click)="promoteHouseholdMember(member.uid)"
+                            class="text-xs text-indigo-600 font-medium px-2 py-1 rounded-lg hover:bg-indigo-50 transition-colors shrink-0">
+                      Gjør admin
+                    </button>
+                  }
+                  <button (click)="removeHouseholdMember(member.uid)"
+                          class="text-xs text-red-500 font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition-colors shrink-0">
+                    Fjern
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <button (click)="showJoinSheet.set(true)"
+                  class="text-sm text-blue-600 font-medium">
+            Bli med i en annen husstand
+          </button>
+        } @else {
+          <p class="text-sm text-gray-400 animate-pulse">Laster husstand…</p>
+        }
+      </div>
 
       <!-- Push-varsler -->
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3">
@@ -377,6 +438,44 @@ type ConfirmMode = 'delete-child' | 'clear-all';
         </div>
       </div>
     }
+
+    <!-- Bli med i husstand-sheet -->
+    @if (showJoinSheet()) {
+      <div class="fixed inset-0 z-[70] flex flex-col justify-end">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="showJoinSheet.set(false)"></div>
+        <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 safe-bottom shadow-2xl space-y-5 modal-sheet">
+          <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1"></div>
+          <div>
+            <h3 class="text-lg font-bold text-gray-900">Bli med i husstand</h3>
+            <p class="text-sm text-gray-500 mt-1">Skriv inn invitasjonskoden fra et familiemedlem.</p>
+          </div>
+          <input [(ngModel)]="joinCode"
+                 placeholder="ABC123"
+                 autocomplete="off"
+                 (input)="joinError.set(null)"
+                 class="w-full border border-gray-200 rounded-xl px-3 py-3 text-lg font-mono tracking-widest text-center uppercase focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          @if (joinError()) {
+            <p class="text-sm text-red-600">{{ joinError() }}</p>
+          }
+          <div class="space-y-2">
+            <button (click)="joinHousehold()"
+                    [disabled]="!joinCode.trim() || joinLoading()"
+                    class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-40 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+              @if (joinLoading()) {
+                <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                Kobler til…
+              } @else {
+                Bli med
+              }
+            </button>
+            <button (click)="showJoinSheet.set(false)"
+                    class="w-full py-3 rounded-xl font-medium text-sm text-gray-500 active:scale-[0.98] transition-all">
+              Avbryt
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: `
     .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 1.25rem); }
@@ -393,6 +492,44 @@ export class SettingsComponent {
   google = inject(GoogleCalendarService);
   notifications = inject(NotificationService);
   auth = inject(AuthService);
+  household = inject(HouseholdService);
+
+  // Husstand
+  codeCopied = signal(false);
+  showJoinSheet = signal(false);
+  joinCode = '';
+  joinLoading = signal(false);
+  joinError = signal<string | null>(null);
+
+  copyInviteCode(): void {
+    const code = this.household.inviteCode();
+    if (!code) return;
+    navigator.clipboard.writeText(code).catch(() => {});
+    this.codeCopied.set(true);
+    setTimeout(() => this.codeCopied.set(false), 2000);
+  }
+
+  async joinHousehold(): Promise<void> {
+    this.joinLoading.set(true);
+    this.joinError.set(null);
+    try {
+      await this.household.joinHousehold(this.joinCode);
+      this.showJoinSheet.set(false);
+      this.joinCode = '';
+    } catch (err: unknown) {
+      this.joinError.set(err instanceof Error ? err.message : 'Noe gikk galt. Prøv igjen.');
+    } finally {
+      this.joinLoading.set(false);
+    }
+  }
+
+  async removeHouseholdMember(uid: string): Promise<void> {
+    await this.household.removeMember(uid);
+  }
+
+  async promoteHouseholdMember(uid: string): Promise<void> {
+    await this.household.promoteMember(uid);
+  }
 
   presetColors = PRESET_COLORS;
   saved = signal(false);
