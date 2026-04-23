@@ -48,13 +48,13 @@ import { SchoolDataService } from './shared/services/school-data.service';
       }
 
       <!-- Content -->
-      <main class="flex-1 overflow-y-auto pb-12">
+      <main class="flex-1 overflow-y-auto pb-16">
         <router-outlet />
       </main>
 
       <!-- Bottom nav (only when logged in) -->
       @if (auth.isLoggedIn()) {
-        <nav class="absolute bottom-0 left-0 right-0 bg-white pb-[env(safe-area-inset-bottom)]">
+        <nav class="absolute bottom-0 left-0 right-0 z-50 bg-white pb-[env(safe-area-inset-bottom)]">
           <div class="flex items-center justify-around h-16 px-4">
             <a #rla1="routerLinkActive" routerLink="/" routerLinkActive [routerLinkActiveOptions]="{ exact: true }"
                class="flex-1 flex flex-col items-center py-2 transition-colors border-t-2"

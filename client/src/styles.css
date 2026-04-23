@@ -8,6 +8,8 @@
    og iOS fyller gapet med manifest `theme_color`. */
 html, body {
   height: 100%;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -20,6 +22,12 @@ body {
   -webkit-tap-highlight-color: transparent;
   /* Skarpere font-rendering */
   -webkit-font-smoothing: antialiased;
+}
+
+app-root {
+  display: block;
+  height: 100%;
+  min-height: 100dvh;
 }
 
 /* Forhindrer automatisk zoom på iOS når man klikker i input-felt.
