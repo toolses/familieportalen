@@ -54,7 +54,7 @@ import { SchoolDataService } from './shared/services/school-data.service';
 
       <!-- Bottom nav (only when logged in) -->
       @if (auth.isLoggedIn()) {
-        <nav class="shrink-0 bg-white border-t border-gray-200 z-50 pb-1">
+        <nav class="shrink-0 bg-white border-t border-gray-200 z-50 pb-[calc(env(safe-area-inset-bottom,0.25rem)+0.25rem)]">
           <div class="max-w-2xl mx-auto flex">
             <a #rla1="routerLinkActive" routerLink="/" routerLinkActive [routerLinkActiveOptions]="{ exact: true }"
                class="flex-1 flex flex-col items-center py-2 transition-colors border-t-2"

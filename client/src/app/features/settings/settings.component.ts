@@ -17,7 +17,7 @@ type ConfirmMode = 'delete-child' | 'clear-all';
   standalone: true,
   imports: [FormsModule, ResidencyPlannerComponent],
   template: `
-    <div class="px-4 pt-4 pb-8 space-y-6">
+    <div class="px-4 pt-4 pb-4 space-y-6">
       <h2 class="text-xl font-bold text-gray-800">Innstillinger</h2>
 
       <!-- Google Calendar (kun admin) -->

@@ -37,7 +37,7 @@ interface CalendarDay {
   standalone: true,
   imports: [SwipeDirective, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
   template: `
-    <div class="px-4 pt-2 pb-24 space-y-3" appSwipe
+    <div class="px-4 pt-2 pb-4 space-y-3" appSwipe
          (swipeLeft)="viewMode() === 'week' ? nextWeek() : nextMonth()"
          (swipeRight)="viewMode() === 'week' ? prevWeek() : prevMonth()">
       <!-- Header -->
