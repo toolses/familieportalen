@@ -8,7 +8,7 @@ import { SchoolDataService } from './shared/services/school-data.service';
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="flex flex-col h-[100dvh] w-full bg-gray-50 overflow-hidden relative">
+    <div class="flex flex-col h-full w-full bg-gray-50 overflow-hidden relative">
       <!-- Header -->
       @if (auth.isLoggedIn()) {
         <header class="shrink-0 bg-white z-50 px-4 py-3 pt-[env(safe-area-inset-top)] shadow-sm">
@@ -54,7 +54,7 @@ import { SchoolDataService } from './shared/services/school-data.service';
 
       <!-- Bottom nav (only when logged in) -->
       @if (auth.isLoggedIn()) {
-        <nav class="fixed bottom-0 left-0 right-0 z-50 bg-white pb-[env(safe-area-inset-bottom)]">
+        <nav class="shrink-0 bg-white border-t border-gray-200 z-50 pb-[env(safe-area-inset-bottom)]">
           <div class="flex items-center justify-around h-16 px-4">
             <a #rla1="routerLinkActive" routerLink="/" routerLinkActive [routerLinkActiveOptions]="{ exact: true }"
                class="flex-1 flex flex-col items-center py-2 transition-colors border-t-2"

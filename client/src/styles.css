@@ -1,33 +1,27 @@
 @import "tailwindcss";
 
-/* === iOS PWA-fiksing === */
-
-/* Forhindrer at body/window scroller → holder header og navbar på plass.
-   100dvh sørger for at dokumentet dekker hele viewport inkludert iOS sin
-   bunn-safe-area. Uten dette blir fixed inset-0 klippet over safe-area,
-   og iOS fyller gapet med manifest `theme_color`. */
 html, body {
-  height: 100%;
+  /* Tvinger Safari til å bruke faktisk skjermhøyde fra aller øverste nivå */
+  height: 100dvh; 
+  width: 100%;
   margin: 0;
   padding: 0;
-  /* overflow: hidden; */
+  /* Kutter alt innhold som prøver å gå utenfor skjermen (låser appen) */
+  overflow: hidden; 
   overscroll-behavior-y: none;
 }
 
 body {
-  /* Hvit fallback matcher navbar/innholdsflater dersom noe likevel skinner
-     gjennom. Splash har sin egen inline-gradient. */
   background-color: #ffffff;
-  /* Fjerner grå tap-highlight på iOS */
   -webkit-tap-highlight-color: transparent;
-  /* Skarpere font-rendering */
   -webkit-font-smoothing: antialiased;
 }
 
 app-root {
   display: block;
-  height: 100%;
-  min-height: 100dvh;
+  /* Nå arver denne 100dvh perfekt fra body */
+  height: 100%; 
+  width: 100%;
 }
 
 /* Forhindrer automatisk zoom på iOS når man klikker i input-felt.
