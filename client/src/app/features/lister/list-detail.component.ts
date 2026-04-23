@@ -8,7 +8,7 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
   imports: [],
   template: `
     @if (list(); as lst) {
-      <div class="flex flex-col h-[calc(100dvh-8rem)]">
+      <div class="flex flex-col">
 
         <!-- Header -->
         <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100 bg-white shrink-0">

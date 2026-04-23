@@ -8,10 +8,10 @@ import { SchoolDataService } from './shared/services/school-data.service';
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="flex flex-col min-h-[100dvh] w-full bg-gray-50 relative">
+    <div class="flex flex-col h-[100dvh] w-full bg-gray-50 overflow-hidden relative">
       <!-- Header -->
       @if (auth.isLoggedIn()) {
-        <header class="shrink-0 bg-white border-b border-gray-200 px-4 py-3 z-50 safe-top">
+        <header class="shrink-0 bg-white z-50 px-4 py-3 pt-[env(safe-area-inset-top)] shadow-sm">
           <div class="max-w-2xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="28" height="28" style="border-radius:6px">
@@ -48,7 +48,7 @@ import { SchoolDataService } from './shared/services/school-data.service';
       }
 
       <!-- Content -->
-      <main class="flex-1 overflow-y-auto pb-24">
+      <main class="flex-1 overflow-y-auto relative">
         <router-outlet />
       </main>
 
