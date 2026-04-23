@@ -54,8 +54,9 @@ import { SchoolDataService } from './shared/services/school-data.service';
 
       <!-- Bottom nav (only when logged in) -->
       @if (auth.isLoggedIn()) {
-        @if (auth.isLoggedIn()) {
-        <div class="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-[max(env(safe-area-inset-bottom),1.5rem)] px-4 pointer-events-none">
+        @if (auth.isLoggedIn()) { 
+          <!-- pb-[max(env(safe-area-inset-bottom),1.5rem)] -->
+        <div class="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
           
           <nav class="bg-white/85 backdrop-blur-xl border border-gray-200 shadow-xl shadow-gray-300/40 rounded-full px-2 py-2 flex items-center justify-between w-full max-w-sm pointer-events-auto">
             
