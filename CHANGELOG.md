@@ -4,6 +4,13 @@ Alle merkbare endringer i dette prosjektet dokumenteres her.
 Format basert på [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versjonering følger [Semantic Versioning](https://semver.org/).
 
+## [0.2.1-beta] — 2026-04-23
+
+### Fikset
+- Justert bunnpadding i navigasjonsbar, kalender og innstillinger
+
+---
+
 ## [0.2.0-beta] — 2026-04-23
 
 ### Lagt til
@@ -72,5 +79,6 @@ Første beta-release. Dekker all funksjonalitet pushet til `main`.
 ### Feilfikser
 - Rettet Firestore-regler som feilet ved pre-join-lesing for husstand
 
+[0.2.1-beta]: https://github.com/toolses/familieportalen/compare/v0.2.0-beta...v0.2.1-beta
 [0.2.0-beta]: https://github.com/toolses/familieportalen/compare/v0.1.0-beta...v0.2.0-beta
 [0.1.0-beta]: https://github.com/toolses/familieportalen/releases/tag/v0.1.0-beta
