@@ -222,8 +222,7 @@ interface ChildUkelekser {
 
           <!-- Manuelle hendelser -->
           @if (todayManualEvents().length > 0) {
-            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4"
-                 style="border-left: 4px solid #4F46E5;">
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
               <h3 class="text-sm font-bold text-indigo-800 mb-3 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                 Hendelser
@@ -544,6 +543,7 @@ export class DashboardComponent {
   });
 
   reminderEvents = computed<TaggedEvent[]>(() => {
+    if (this.isAfter18()) return [];
     const qaSet = new Set(this.quickActions());
     return this.allTodayEvents().filter((e) => e.category === 'reminder' && !qaSet.has(e));
   });

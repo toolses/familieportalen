@@ -43,28 +43,18 @@ interface CalendarDay {
       <!-- Header -->
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-bold text-gray-800">Kalender</h2>
-        <div class="flex items-center gap-2">
-          <!-- View toggle -->
-          <div class="flex bg-gray-100 rounded-xl p-0.5">
-            <button (click)="viewMode.set('week')"
-                    class="px-3 py-1 text-xs font-medium rounded-lg transition-all"
-                    [class]="viewMode() === 'week' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'">
-              Uke
-            </button>
-            <button (click)="viewMode.set('month'); selectedMonthDate.set(today)"
-                    class="px-3 py-1 text-xs font-medium rounded-lg transition-all"
-                    [class]="viewMode() === 'month' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'">
-              Måned
-            </button>
-          </div>
-          @if (residency.todayResidency(); as label) {
-            <div class="px-3 py-1.5 rounded-full text-sm font-semibold"
-                 [class]="label === 'Mamma'
-                   ? 'bg-rose-100 text-rose-700'
-                   : 'bg-blue-100 text-blue-700'">
-              Hos {{ label }}
-            </div>
-          }
+        <!-- View toggle -->
+        <div class="flex bg-gray-100 rounded-xl p-0.5">
+          <button (click)="viewMode.set('week')"
+                  class="px-3 py-1 text-xs font-medium rounded-lg transition-all"
+                  [class]="viewMode() === 'week' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'">
+            Uke
+          </button>
+          <button (click)="viewMode.set('month'); selectedMonthDate.set(today)"
+                  class="px-3 py-1 text-xs font-medium rounded-lg transition-all"
+                  [class]="viewMode() === 'month' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'">
+            Måned
+          </button>
         </div>
       </div>
 
