@@ -6,8 +6,10 @@ import { SchoolEvent } from '../../features/school-plan/models/school-plan.model
   standalone: true,
   template: `
     <button
-      class="w-full flex gap-3 items-start rounded-xl p-3 active:bg-white/80 transition-colors text-left"
-      [class]="event().completed ? 'bg-white/30 opacity-70' : 'bg-white/60'"
+      class="w-full flex gap-3 items-start rounded-xl p-3 transition-colors text-left"
+      [class]="subtle()
+        ? (event().completed ? 'bg-white/30 opacity-70 active:bg-white/80' : 'bg-white/60 active:bg-white/80')
+        : (event().completed ? 'bg-blue-50 border border-blue-100 opacity-60 active:bg-blue-100' : 'bg-blue-50 border border-blue-200 active:bg-blue-100')"
       (click)="edit.emit()">
 
       @if (event().completed) {
@@ -52,6 +54,7 @@ export class HomeworkItemComponent {
   event = input.required<SchoolEvent>();
   childName = input<string | null>(null);
   childColor = input<string | null>(null);
+  subtle = input<boolean>(false);
   edit = output<void>();
 
   isUkelekse = () => {

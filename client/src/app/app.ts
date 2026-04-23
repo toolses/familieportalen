@@ -31,7 +31,6 @@ import { SchoolDataService } from './shared/services/school-data.service';
               @if (auth.photoURL()) {
                 <img [src]="auth.photoURL()" alt="" class="w-8 h-8 rounded-full" referrerpolicy="no-referrer" />
               }
-              <button (click)="logout()" class="text-sm text-gray-500 hover:text-gray-700">Logg ut</button>
             </div>
           </div>
         </header>
@@ -56,7 +55,7 @@ import { SchoolDataService } from './shared/services/school-data.service';
       @if (auth.isLoggedIn()) {
         @if (auth.isLoggedIn()) { 
           <!-- pb-[max(env(safe-area-inset-bottom),1.5rem)] -->
-        <div class="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+        <div class="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-[max(env(safe-area-inset-bottom),.5rem)] px-4 pointer-events-none">
           
           <nav class="bg-white/85 backdrop-blur-xl border border-gray-200 shadow-xl shadow-gray-300/40 rounded-full px-2 py-2 flex items-center justify-between w-full max-w-sm pointer-events-auto">
             

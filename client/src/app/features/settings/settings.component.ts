@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { GoogleCalendarService } from '../../shared/services/google-calendar.service';
 import { ResidencyPlannerComponent } from './residency-planner.component';
@@ -19,6 +20,22 @@ type ConfirmMode = 'delete-child' | 'clear-all';
   template: `
     <div class="px-4 pt-4 pb-4 space-y-6">
       <h2 class="text-xl font-bold text-gray-800">Innstillinger</h2>
+
+      <!-- Faner -->
+      <div class="flex gap-1 bg-gray-100 rounded-xl p-1">
+        <button (click)="activeTab.set('generelt')"
+                class="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
+                [class]="activeTab() === 'generelt' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">
+          Generelt
+        </button>
+        <button (click)="activeTab.set('admin')"
+                class="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
+                [class]="activeTab() === 'admin' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">
+          Admin
+        </button>
+      </div>
+
+      @if (activeTab() === 'admin') {
 
       <!-- Google Calendar (kun admin) -->
       @if (auth.isAdmin()) {
@@ -74,6 +91,94 @@ type ConfirmMode = 'delete-child' | 'clear-all';
         }
       </div>
       }
+
+      <!-- Admin: Push-varsler test -->
+      @if (auth.isAdmin()) {
+        <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3 border border-indigo-100">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Admin – Test varsler</h3>
+            <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
+          </div>
+          <p class="text-sm text-gray-500">Send et test-varsel til alle dine registrerte enheter.</p>
+          @if (testPushResult()) {
+            <div class="text-sm rounded-xl px-3 py-2"
+                 [class]="testPushResult()!.ok ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-700'">
+              {{ testPushResult()!.message }}
+            </div>
+          }
+          <button (click)="sendTestPush()"
+                  [disabled]="testPushLoading()"
+                  class="flex items-center gap-2 w-full justify-center py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium active:scale-[0.98] transition-all disabled:opacity-40">
+            @if (testPushLoading()) {
+              <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              Sender...
+            } @else {
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              Send test-varsel
+            }
+          </button>
+        </div>
+      }
+
+      <!-- Barn-administrasjon (kun admin) -->
+      @if (auth.isAdmin()) {
+      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4 border border-indigo-100">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Barn</h3>
+            <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
+          </div>
+          <button (click)="openAdd()"
+                  class="flex items-center gap-1 text-sm text-blue-600 font-medium active:scale-[0.97] transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+            Legg til
+          </button>
+        </div>
+
+        @if (data.children().length === 0) {
+          <p class="text-sm text-gray-400 text-center py-2">Ingen barn lagt til ennå.</p>
+        } @else {
+          <div class="space-y-2">
+            @for (child of data.children(); track child.id) {
+              <button (click)="openEdit(child)"
+                      class="w-full flex items-center gap-3 bg-gray-50 rounded-xl p-3 active:bg-gray-100 transition-colors text-left">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                     [style.background]="child.color">
+                  {{ child.name.charAt(0).toUpperCase() }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <span class="font-medium text-gray-800 text-sm">{{ child.name }}</span>
+                  <span class="text-xs text-gray-400 ml-2">{{ child.grade }}</span>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300 shrink-0"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            }
+          </div>
+        }
+      </div>
+      }
+
+      <!-- Data management (kun admin) -->
+      @if (auth.isAdmin()) {
+      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3 border border-indigo-100">
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Data</h3>
+          <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
+        </div>
+        <p class="text-sm text-gray-500">
+          {{ data.children().length }} barn registrert.
+        </p>
+        <button (click)="openConfirm('clear-all')"
+                class="text-sm text-red-600 font-medium">
+          Slett all data
+        </button>
+      </div>
+      } <!-- /Data admin -->
+
+      }
+
+      @if (activeTab() === 'generelt') {
+      <!-- Generelt-fane -->
 
       <!-- Husstand -->
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
@@ -203,34 +308,6 @@ type ConfirmMode = 'delete-child' | 'clear-all';
         }
       </div>
 
-      <!-- Admin: Push-varsler test -->
-      @if (auth.isAdmin()) {
-        <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3 border border-indigo-100">
-          <div class="flex items-center gap-2">
-            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Admin – Test varsler</h3>
-            <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
-          </div>
-          <p class="text-sm text-gray-500">Send et test-varsel til alle dine registrerte enheter.</p>
-          @if (testPushResult()) {
-            <div class="text-sm rounded-xl px-3 py-2"
-                 [class]="testPushResult()!.ok ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-700'">
-              {{ testPushResult()!.message }}
-            </div>
-          }
-          <button (click)="sendTestPush()"
-                  [disabled]="testPushLoading()"
-                  class="flex items-center gap-2 w-full justify-center py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium active:scale-[0.98] transition-all disabled:opacity-40">
-            @if (testPushLoading()) {
-              <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              Sender...
-            } @else {
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-              Send test-varsel
-            }
-          </button>
-        </div>
-      }
-
       <!-- Samvaersplan -->
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
         <div>
@@ -265,61 +342,16 @@ type ConfirmMode = 'delete-child' | 'clear-all';
         }
       </div>
 
-      <!-- Barn-administrasjon (kun admin) -->
-      @if (auth.isAdmin()) {
-      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4 border border-indigo-100">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Barn</h3>
-            <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
-          </div>
-          <button (click)="openAdd()"
-                  class="flex items-center gap-1 text-sm text-blue-600 font-medium active:scale-[0.97] transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
-            Legg til
-          </button>
-        </div>
-
-        @if (data.children().length === 0) {
-          <p class="text-sm text-gray-400 text-center py-2">Ingen barn lagt til ennå.</p>
-        } @else {
-          <div class="space-y-2">
-            @for (child of data.children(); track child.id) {
-              <button (click)="openEdit(child)"
-                      class="w-full flex items-center gap-3 bg-gray-50 rounded-xl p-3 active:bg-gray-100 transition-colors text-left">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-                     [style.background]="child.color">
-                  {{ child.name.charAt(0).toUpperCase() }}
-                </div>
-                <div class="flex-1 min-w-0">
-                  <span class="font-medium text-gray-800 text-sm">{{ child.name }}</span>
-                  <span class="text-xs text-gray-400 ml-2">{{ child.grade }}</span>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300 shrink-0"><path d="M9 18l6-6-6-6"/></svg>
-              </button>
-            }
-          </div>
-        }
-      </div>
-
-      }
-
-      <!-- Data management (kun admin) -->
-      @if (auth.isAdmin()) {
-      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3 border border-indigo-100">
-        <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Data</h3>
-          <span class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">Admin</span>
-        </div>
-        <p class="text-sm text-gray-500">
-          {{ data.children().length }} barn registrert.
-        </p>
-        <button (click)="openConfirm('clear-all')"
-                class="text-sm text-red-600 font-medium">
-          Slett all data
+      <!-- Logg ut -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm">
+        <button (click)="logout()"
+                class="flex items-center gap-2 w-full justify-center py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-red-600 active:scale-[0.98] transition-all hover:bg-red-50">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          Logg ut
         </button>
       </div>
-      }
+
+      } <!-- /Generelt-fane -->
 
       @if (saved()) {
         <div class="p-3 bg-green-100 text-green-800 rounded-xl text-sm text-center font-medium">
@@ -520,6 +552,9 @@ export class SettingsComponent {
   notifications = inject(NotificationService);
   auth = inject(AuthService);
   household = inject(HouseholdService);
+  private router = inject(Router);
+
+  activeTab = signal<'generelt' | 'admin'>('generelt');
 
   // Husstand
   codeCopied = signal(false);
@@ -691,6 +726,11 @@ export class SettingsComponent {
 
   async clearAllData() {
     this.openConfirm('clear-all');
+  }
+
+  async logout(): Promise<void> {
+    await this.auth.signOut();
+    this.router.navigate(['/login']);
   }
 
   private flashSaved() {
