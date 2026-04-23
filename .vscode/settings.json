@@ -9,6 +9,7 @@
         "npx sharp-cli": true,
         "ConvertFrom-Json": true,
         "npx vitest": true,
-        "npm test": true
+        "npm test": true,
+        "npx expo": true
     }
 }

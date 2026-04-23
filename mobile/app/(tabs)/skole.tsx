@@ -7,19 +7,26 @@ import {
   PanResponder,
   Alert,
   ActivityIndicator,
+  Modal,
+  Pressable,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Camera, ChevronDown, ChevronUp, X, ZoomIn } from 'lucide-react-native';
 import { useFamilyStore } from '../../src/store/useFamilyStore';
 import { useSchoolStore } from '../../src/store/useSchoolStore';
 import { toIsoDate, todayIso } from '../../src/utils/date-utils';
-import type { SchoolEvent } from '../../src/types/family.types';
+import { EventCard } from '../../src/components/EventCard';
+import { EventEditModal } from '../../src/components/EventEditModal';
+import type { EditTarget } from '../../src/components/EventEditModal';
+import type { SchoolEvent, TaggedSchoolEvent } from '../../src/types/family.types';
 
 // ── date helpers ──────────────────────────────────────────────────────────────
 
 function getMondayOfWeek(week: number, year: number): Date {
   const jan4 = new Date(year, 0, 4);
-  const dow = jan4.getDay() || 7; // ISO: Mon=1 … Sun=7
+  const dow = jan4.getDay() || 7;
   const result = new Date(jan4);
   result.setDate(jan4.getDate() - (dow - 1) + (week - 1) * 7);
   return result;
@@ -27,74 +34,66 @@ function getMondayOfWeek(week: number, year: number): Date {
 
 const DAY_LABELS = ['man', 'tir', 'ons', 'tor', 'fre'] as const;
 
-// ── sub-components ────────────────────────────────────────────────────────────
+// ── FullscreenImageModal ──────────────────────────────────────────────────────
 
-function ReminderItem({ event, isLast }: { event: SchoolEvent; isLast: boolean }) {
-  return (
-    <>
-      <View className="flex-row items-start gap-3 p-4">
-        <View className="mt-1 h-2 w-2 rounded-full bg-amber-500" />
-        <View className="flex-1">
-          <View className="flex-row flex-wrap items-center gap-2">
-            <Text className="font-semibold text-gray-800">{event.title}</Text>
-            <Text className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white">
-              Påminnelse
-            </Text>
-          </View>
-          {!!event.description && (
-            <Text className="mt-0.5 text-sm text-gray-500">{event.description}</Text>
-          )}
-        </View>
-      </View>
-      {!isLast && <View className="mx-4 h-px bg-amber-100" />}
-    </>
-  );
-}
-
-function HomeworkItem({
-  event,
-  onToggle,
-  isLast,
+function FullscreenImageModal({
+  uri,
+  onClose,
 }: {
-  event: SchoolEvent;
-  onToggle: () => void;
-  isLast: boolean;
+  uri: string | null;
+  onClose: () => void;
 }) {
+  const { width: screenWidth } = Dimensions.get('window');
+
   return (
-    <>
-      <View className="flex-row items-start gap-3 p-4">
+    <Modal
+      visible={uri !== null}
+      animationType="fade"
+      transparent
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)' }}>
+        {/* Close button */}
         <TouchableOpacity
-          className={`mt-0.5 h-5 w-5 items-center justify-center rounded-full border-2 ${
-            event.completed ? 'border-blue-500 bg-blue-500' : 'border-blue-300'
-          }`}
-          onPress={onToggle}
-          activeOpacity={0.7}
+          onPress={onClose}
+          style={{
+            position: 'absolute',
+            top: 52,
+            right: 20,
+            zIndex: 10,
+            backgroundColor: 'rgba(255,255,255,0.15)',
+            borderRadius: 20,
+            padding: 8,
+          }}
+          hitSlop={12}
         >
-          {event.completed && (
-            <Text className="text-[10px] font-bold text-white">✓</Text>
-          )}
+          <X size={22} color="white" />
         </TouchableOpacity>
-        <View className="flex-1">
-          <Text
-            className={`font-semibold ${
-              event.completed ? 'text-gray-400 line-through' : 'text-gray-800'
-            }`}
+
+        {uri && (
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+            maximumZoomScale={4}
+            minimumZoomScale={1}
+            bouncesZoom
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
           >
-            {event.title}
-          </Text>
-          {!!event.description && (
-            <Text
-              className={`mt-0.5 text-sm ${
-                event.completed ? 'text-gray-300' : 'text-gray-500'
-              }`}
-            >
-              {event.description}
-            </Text>
-          )}
-        </View>
+            <Image
+              source={{ uri }}
+              style={{ width: screenWidth, height: screenWidth * 1.5 }}
+              resizeMode="contain"
+            />
+          </ScrollView>
+        )}
+
+        <Text style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', paddingBottom: 24, fontSize: 11 }}>
+          Klyp for å zoome · Trykk for å lukke
+        </Text>
       </View>
-      {!isLast && <View className="mx-4 h-px bg-blue-100" />}
-    </>
+    </Modal>
   );
 }
 
@@ -106,14 +105,14 @@ export default function SkoleScreen() {
   const plansMap = useFamilyStore((s) => s.plansMap);
   const toggleHomework = useSchoolStore((s) => s.toggleHomeworkCompletion);
 
-  // ── local state ───────────────────────────────────────────────────────────
-
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(() => {
-    const day = new Date().getDay(); // 0=Sun … 6=Sat
-    return day >= 1 && day <= 5 ? day - 1 : 0; // default to today (Mon=0 … Fri=4)
+    const day = new Date().getDay();
+    return day >= 1 && day <= 5 ? day - 1 : 0;
   });
-  const [infoExpanded, setInfoExpanded] = useState(true);
+  const [infoExpanded, setInfoExpanded] = useState(false); // closed by default
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [fullscreenImageUri, setFullscreenImageUri] = useState<string | null>(null);
 
   // Select first child once children load
   useEffect(() => {
@@ -121,8 +120,6 @@ export default function SkoleScreen() {
       setSelectedChildId(familyChildren[0].id);
     }
   }, [familyChildren.length]);
-
-  // ── derived data ──────────────────────────────────────────────────────────
 
   const childPlans = selectedChildId ? (plansMap[selectedChildId] ?? []) : [];
   const latestPlan = childPlans.length > 0 ? childPlans[childPlans.length - 1] : null;
@@ -137,7 +134,6 @@ export default function SkoleScreen() {
     });
   }, [latestPlan?.metadata.uke, latestPlan?.metadata.aar]);
 
-  // When the plan changes: select today if it falls in this week, else Monday
   useEffect(() => {
     if (!weekDates.length) return;
     const today = todayIso();
@@ -146,6 +142,8 @@ export default function SkoleScreen() {
   }, [weekDates]);
 
   const selectedDayIso = weekDates[selectedDayIndex] ?? null;
+
+  const selectedChild = familyChildren.find((c) => c.id === selectedChildId) ?? null;
 
   const infoEvents = useMemo(
     () => (latestPlan ? latestPlan.events.filter((e) => e.category === 'information') : []),
@@ -185,7 +183,15 @@ export default function SkoleScreen() {
 
   const todayStr = todayIso();
 
-  // ── loading ───────────────────────────────────────────────────────────────
+  // Build a TaggedSchoolEvent for a SchoolEvent so we can open the edit modal
+  function tagEvent(ev: SchoolEvent): TaggedSchoolEvent {
+    return {
+      ...ev,
+      childName: selectedChild?.name ?? '',
+      childColor: selectedChild?.color ?? '#6366f1',
+      childId: selectedChildId ?? '',
+    };
+  }
 
   if (isLoading) {
     return (
@@ -194,8 +200,6 @@ export default function SkoleScreen() {
       </SafeAreaView>
     );
   }
-
-  // ── no children ───────────────────────────────────────────────────────────
 
   if (familyChildren.length === 0) {
     return (
@@ -209,10 +213,8 @@ export default function SkoleScreen() {
     );
   }
 
-  // ── render ────────────────────────────────────────────────────────────────
-
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['bottom']}>
       {/* ── Child selector ── */}
       <ScrollView
         horizontal
@@ -332,7 +334,7 @@ export default function SkoleScreen() {
             }}
             showsVerticalScrollIndicator={false}
           >
-            {/* A: Information (week-wide, collapsible) */}
+            {/* A: Information (week-wide, collapsible, closed by default) */}
             {infoEvents.length > 0 && (
               <View className="mb-3 overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-50">
                 <TouchableOpacity
@@ -358,7 +360,11 @@ export default function SkoleScreen() {
                   <>
                     <View className="mx-4 h-px bg-emerald-200" />
                     {infoEvents.map((ev, i) => (
-                      <View key={i}>
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => setEditTarget({ kind: 'school', data: tagEvent(ev) })}
+                        activeOpacity={0.75}
+                      >
                         <View className="p-4">
                           <Text className="font-semibold text-emerald-900">{ev.title}</Text>
                           {!!ev.description && (
@@ -370,7 +376,7 @@ export default function SkoleScreen() {
                         {i < infoEvents.length - 1 && (
                           <View className="mx-4 h-px bg-emerald-100" />
                         )}
-                      </View>
+                      </TouchableOpacity>
                     ))}
                   </>
                 )}
@@ -381,12 +387,20 @@ export default function SkoleScreen() {
             {dayReminders.length > 0 && (
               <View className="mb-3">
                 <Text className="mb-2 text-sm font-semibold text-amber-600">Påminnelser</Text>
-                <View className="overflow-hidden rounded-2xl border border-amber-100 bg-amber-50">
+                <View>
                   {dayReminders.map((ev, i) => (
-                    <ReminderItem
+                    <EventCard
                       key={i}
-                      event={ev}
-                      isLast={i === dayReminders.length - 1}
+                      kind="reminder"
+                      title={ev.title}
+                      description={ev.description || undefined}
+                      date={ev.date}
+                      assignees={
+                        selectedChild
+                          ? [{ label: selectedChild.name, color: selectedChild.color }]
+                          : []
+                      }
+                      onPress={() => setEditTarget({ kind: 'school', data: tagEvent(ev) })}
                     />
                   ))}
                 </View>
@@ -397,15 +411,32 @@ export default function SkoleScreen() {
             {dayHomework.length > 0 && (
               <View className="mb-3">
                 <Text className="mb-2 text-sm font-semibold text-blue-600">Lekser</Text>
-                <View className="overflow-hidden rounded-2xl border border-blue-100 bg-blue-50">
+                <View>
                   {dayHomework.map((ev, i) => (
-                    <HomeworkItem
+                    <EventCard
                       key={i}
-                      event={ev}
-                      isLast={i === dayHomework.length - 1}
-                      onToggle={() =>
+                      kind="homework"
+                      title={ev.title}
+                      description={ev.description || undefined}
+                      date={ev.date}
+                      assignees={
+                        selectedChild
+                          ? [{ label: selectedChild.name, color: selectedChild.color }]
+                          : []
+                      }
+                      completed={ev.completed}
+                      onToggleComplete={() =>
                         selectedChildId &&
                         toggleHomework(selectedChildId, ev.date, ev.title)
+                      }
+                      onPress={() =>
+                        setEditTarget({
+                          kind: 'school',
+                          data: tagEvent(ev),
+                          onToggle: () =>
+                            selectedChildId &&
+                            toggleHomework(selectedChildId, ev.date, ev.title),
+                        })
                       }
                     />
                   ))}
@@ -423,23 +454,85 @@ export default function SkoleScreen() {
               </View>
             )}
 
-            {/* D: Original plan thumbnails (placeholder until scan flow is implemented) */}
+            {/* D: Original plan thumbnails */}
             <View className="mb-3">
               <Text className="mb-2 text-sm font-semibold text-gray-400">Originalplan</Text>
               <View className="flex-row gap-3">
-                <View className="flex-1 items-center rounded-2xl bg-gray-100 py-7">
-                  <Text className="text-2xl">📄</Text>
-                  <Text className="mt-1 text-xs font-medium text-gray-400">Ukeplan</Text>
-                </View>
-                <View className="flex-1 items-center rounded-2xl bg-gray-100 py-7 opacity-50">
-                  <Text className="text-2xl">📄</Text>
-                  <Text className="mt-1 text-xs font-medium text-gray-400">Timeplan</Text>
-                </View>
+                {/* Ukeplan */}
+                <TouchableOpacity
+                  className="flex-1 items-center overflow-hidden rounded-2xl bg-gray-100 py-7"
+                  activeOpacity={latestPlan.imageUrls?.weekPlan ? 0.7 : 1}
+                  onPress={() => {
+                    if (latestPlan.imageUrls?.weekPlan) {
+                      setFullscreenImageUri(latestPlan.imageUrls.weekPlan);
+                    }
+                  }}
+                >
+                  {latestPlan.imageUrls?.weekPlan ? (
+                    <View className="items-center">
+                      <Image
+                        source={{ uri: latestPlan.imageUrls.weekPlan }}
+                        style={{ width: '100%', height: 72, borderRadius: 8 }}
+                        resizeMode="cover"
+                      />
+                      <View className="mt-1.5 flex-row items-center gap-1">
+                        <ZoomIn size={11} color="#6366f1" />
+                        <Text className="text-xs font-medium text-indigo-500">Ukeplan</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <>
+                      <Text className="text-2xl">📄</Text>
+                      <Text className="mt-1 text-xs font-medium text-gray-400">Ukeplan</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {/* Timeplan */}
+                <TouchableOpacity
+                  className={`flex-1 items-center overflow-hidden rounded-2xl bg-gray-100 py-7 ${
+                    latestPlan.imageUrls?.schedule ? '' : 'opacity-50'
+                  }`}
+                  activeOpacity={latestPlan.imageUrls?.schedule ? 0.7 : 1}
+                  onPress={() => {
+                    if (latestPlan.imageUrls?.schedule) {
+                      setFullscreenImageUri(latestPlan.imageUrls.schedule);
+                    }
+                  }}
+                >
+                  {latestPlan.imageUrls?.schedule ? (
+                    <View className="items-center">
+                      <Image
+                        source={{ uri: latestPlan.imageUrls.schedule }}
+                        style={{ width: '100%', height: 72, borderRadius: 8 }}
+                        resizeMode="cover"
+                      />
+                      <View className="mt-1.5 flex-row items-center gap-1">
+                        <ZoomIn size={11} color="#6366f1" />
+                        <Text className="text-xs font-medium text-indigo-500">Timeplan</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <>
+                      <Text className="text-2xl">📄</Text>
+                      <Text className="mt-1 text-xs font-medium text-gray-400">Timeplan</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
           </ScrollView>
         </View>
       )}
+
+      {/* Event edit modal */}
+      <EventEditModal target={editTarget} onClose={() => setEditTarget(null)} />
+
+      {/* Fullscreen image viewer */}
+      <FullscreenImageModal
+        uri={fullscreenImageUri}
+        onClose={() => setFullscreenImageUri(null)}
+      />
     </SafeAreaView>
   );
 }

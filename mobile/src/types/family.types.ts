@@ -35,6 +35,10 @@ export interface SavedPlan {
   events: SchoolEvent[];
   savedAt: string;
   house?: 'A' | 'B';
+  imageUrls?: {
+    weekPlan?: string;
+    schedule?: string;
+  };
 }
 
 export interface Child {
@@ -47,7 +51,9 @@ export interface Child {
 export interface BaseRotation {
   startDate: string;
   startLabel: 'Mamma' | 'Pappa';
-  frequency: 'bi-weekly';
+  frequency: 'weekly' | 'bi-weekly';
+  switchDay?: number; // 0=Man, 1=Tir, 2=Ons, 3=Tor, 4=Fre, 5=Lør, 6=Søn
+  primaryParent?: 'Mamma' | 'Pappa';
 }
 
 export type ResidencyOverrides = { [date: string]: 'Mamma' | 'Pappa' | null };

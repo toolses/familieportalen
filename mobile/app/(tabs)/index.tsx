@@ -16,12 +16,17 @@ import { useFamilyStore } from '../../src/store/useFamilyStore';
 import { useSchoolStore } from '../../src/store/useSchoolStore';
 import { useCalendarStore } from '../../src/store/useCalendarStore';
 import { toIsoDate, todayIso, formatDateShort, dayName } from '../../src/utils/date-utils';
+import { EventCard } from '../../src/components/EventCard';
+import { EventEditModal } from '../../src/components/EventEditModal';
+import type { EditTarget } from '../../src/components/EventEditModal';
 import type {
   Child,
+  AssignedTo,
   TaggedSchoolEvent,
   ManualReminder,
   ManualCalendarEvent,
 } from '../../src/types/family.types';
+import type { EventCardAssignee } from '../../src/components/EventCard';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,51 +36,11 @@ function addDays(date: Date, n: number): Date {
   return d;
 }
 
-// ── sub-components ────────────────────────────────────────────────────────────
-
-function RowDivider({ amber }: { amber?: boolean }) {
-  return <View className={`h-px mx-4 ${amber ? 'bg-amber-100' : 'bg-blue-100'}`} />;
-}
-
-function SchoolReminderRow({
-  event,
-  isLast,
-}: {
-  event: TaggedSchoolEvent;
-  isLast: boolean;
-}) {
-  return (
-    <>
-      <View className="flex-row items-start gap-3 p-4">
-        <View
-          className="mt-1 h-2.5 w-2.5 rounded-full"
-          style={{ backgroundColor: event.childColor }}
-        />
-        <View className="flex-1">
-          <Text className="font-semibold text-gray-800">{event.title}</Text>
-          {!!event.description && (
-            <Text className="mt-0.5 text-sm text-gray-500">{event.description}</Text>
-          )}
-          <Text className="mt-1 text-[11px] font-semibold" style={{ color: event.childColor }}>
-            {event.childName}
-          </Text>
-        </View>
-      </View>
-      {!isLast && <RowDivider amber />}
-    </>
-  );
-}
-
-function ManualReminderRow({
-  reminder,
-  familyChildren,
-  isLast,
-}: {
-  reminder: ManualReminder;
-  familyChildren: Child[];
-  isLast: boolean;
-}) {
-  const assignees = reminder.assignedTo
+function resolveAssignees(
+  assignedTo: AssignedTo[],
+  familyChildren: Child[],
+): EventCardAssignee[] {
+  return assignedTo
     .map((a) => {
       if (a.type === 'child') {
         const child = familyChildren.find((c) => c.id === a.childId);
@@ -83,117 +48,10 @@ function ManualReminderRow({
       }
       return { label: a.role, color: a.role === 'Mamma' ? '#F43F5E' : '#3B82F6' };
     })
-    .filter(Boolean) as { label: string; color: string }[];
-
-  return (
-    <>
-      <View className="flex-row items-start gap-3 p-4">
-        <View className="mt-1 h-2.5 w-2.5 rounded-full bg-amber-500" />
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2">
-            <Text className="font-semibold text-gray-800">{reminder.title}</Text>
-            {!!reminder.time && (
-              <Text className="text-xs text-amber-600">{reminder.time}</Text>
-            )}
-          </View>
-          {!!reminder.description && (
-            <Text className="mt-0.5 text-sm text-gray-500">{reminder.description}</Text>
-          )}
-          {assignees.length > 0 && (
-            <View className="mt-1 flex-row flex-wrap gap-1">
-              {assignees.map((a, i) => (
-                <Text key={i} className="text-[11px] font-semibold" style={{ color: a.color }}>
-                  {a.label}
-                </Text>
-              ))}
-            </View>
-          )}
-        </View>
-      </View>
-      {!isLast && <RowDivider amber />}
-    </>
-  );
+    .filter(Boolean) as EventCardAssignee[];
 }
 
-function HomeworkRow({
-  event,
-  isLast,
-  onToggle,
-}: {
-  event: TaggedSchoolEvent;
-  isLast: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <>
-      <View className="flex-row items-start gap-3 p-4">
-        <TouchableOpacity
-          className={`mt-0.5 h-5 w-5 items-center justify-center rounded-full border-2 ${
-            event.completed ? 'border-blue-500 bg-blue-500' : 'border-blue-300'
-          }`}
-          onPress={onToggle}
-          activeOpacity={0.7}
-        >
-          {event.completed && (
-            <Text className="text-[10px] font-bold text-white">✓</Text>
-          )}
-        </TouchableOpacity>
-        <View className="flex-1">
-          <Text
-            className={`font-semibold ${event.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}
-          >
-            {event.title}
-          </Text>
-          {!!event.description && (
-            <Text
-              className={`mt-0.5 text-sm ${event.completed ? 'text-gray-300' : 'text-gray-500'}`}
-            >
-              {event.description}
-            </Text>
-          )}
-          <Text className="mt-1 text-[11px] font-semibold" style={{ color: event.childColor }}>
-            {event.childName}
-          </Text>
-        </View>
-      </View>
-      {!isLast && <RowDivider />}
-    </>
-  );
-}
-
-function CalendarEventRow({
-  event,
-  isLast,
-}: {
-  event: ManualCalendarEvent;
-  isLast: boolean;
-}) {
-  const timeLabel = event.isAllDay
-    ? 'Hele dagen'
-    : event.startTime && event.endTime
-    ? `${event.startTime}–${event.endTime}`
-    : (event.startTime ?? '');
-
-  return (
-    <>
-      <View className="flex-row items-start gap-3 p-4">
-        <View className="mt-1 h-2.5 w-2.5 rounded-full bg-indigo-500" />
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2 flex-wrap">
-            <Text className="font-semibold text-gray-800">{event.title}</Text>
-            {!!timeLabel && (
-              <Text className="text-xs text-indigo-500">{timeLabel}</Text>
-            )}
-          </View>
-          {!!event.description && (
-            <Text className="mt-0.5 text-sm text-gray-500">{event.description}</Text>
-          )}
-        </View>
-      </View>
-      {!isLast && <View className="h-px mx-4 bg-gray-100" />}
-    </>
-  );
-}
+// ── OverrideModal ─────────────────────────────────────────────────────────────
 
 function OverrideModal({
   visible,
@@ -277,6 +135,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
 
   // Reactive subscriptions — ensure re-render when Firestore data changes
   const isLoading = useFamilyStore((s) => s.isLoading);
@@ -308,7 +167,7 @@ export default function DashboardScreen() {
 
   const isPast18 = isToday && new Date().getHours() >= 18;
 
-  // ── computed data (useMemo deps include reactive slices to stay fresh) ───────
+  // ── computed data ────────────────────────────────────────────────────────────
 
   const schoolEvents = useMemo(
     () => getSchoolEventsForDate(selectedIso),
@@ -410,7 +269,7 @@ export default function DashboardScreen() {
   // ── render ───────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['bottom']}>
       {/* ── Header ── */}
       <View className="px-4 pb-2 pt-2">
         <View className="flex-row items-center justify-between">
@@ -477,23 +336,28 @@ export default function DashboardScreen() {
           {hasTodayReminders && (
             <View className="mb-3">
               <Text className="mb-2 text-sm font-semibold text-amber-600">Husk i dag!</Text>
-              <View className="overflow-hidden rounded-2xl border border-amber-100 bg-amber-50">
-                {visibleSchoolReminders.map((ev, i) => (
-                  <SchoolReminderRow
-                    key={`school-${ev.childId}-${i}`}
-                    event={ev}
-                    isLast={
-                      i === visibleSchoolReminders.length - 1 &&
-                      manualReminders.length === 0
-                    }
+              <View className="gap-0">
+                {visibleSchoolReminders.map((ev) => (
+                  <EventCard
+                    key={`school-rem-${ev.childId}-${ev.title}`}
+                    kind="reminder"
+                    title={ev.title}
+                    description={ev.description || undefined}
+                    date={ev.date}
+                    assignees={[{ label: ev.childName, color: ev.childColor }]}
+                    onPress={() => setEditTarget({ kind: 'school', data: ev })}
                   />
                 ))}
-                {manualReminders.map((r, i) => (
-                  <ManualReminderRow
+                {manualReminders.map((r) => (
+                  <EventCard
                     key={r.id}
-                    reminder={r}
-                    familyChildren={familyChildren}
-                    isLast={i === manualReminders.length - 1}
+                    kind="reminder"
+                    title={r.title}
+                    description={r.description || undefined}
+                    date={r.date}
+                    time={r.time ?? undefined}
+                    assignees={resolveAssignees(r.assignedTo, familyChildren)}
+                    onPress={() => setEditTarget({ kind: 'reminder', data: r })}
                   />
                 ))}
               </View>
@@ -504,12 +368,20 @@ export default function DashboardScreen() {
           {calendarEvents.length > 0 && (
             <View className="mb-3">
               <Text className="mb-2 text-sm font-semibold text-indigo-600">Hendelser</Text>
-              <View className="overflow-hidden rounded-2xl border border-indigo-50 bg-white">
-                {calendarEvents.map((ev, i) => (
-                  <CalendarEventRow
+              <View className="gap-0">
+                {calendarEvents.map((ev) => (
+                  <EventCard
                     key={ev.id}
-                    event={ev}
-                    isLast={i === calendarEvents.length - 1}
+                    kind="event"
+                    title={ev.title}
+                    description={ev.description || undefined}
+                    startDate={ev.startDate}
+                    endDate={ev.endDate}
+                    startTime={ev.startTime}
+                    endTime={ev.endTime}
+                    isAllDay={ev.isAllDay}
+                    assignees={resolveAssignees(ev.assignedTo, familyChildren)}
+                    onPress={() => setEditTarget({ kind: 'event', data: ev })}
                   />
                 ))}
               </View>
@@ -520,13 +392,24 @@ export default function DashboardScreen() {
           {homework.length > 0 && (
             <View className="mb-3">
               <Text className="mb-2 text-sm font-semibold text-blue-600">Lekser</Text>
-              <View className="overflow-hidden rounded-2xl border border-blue-100 bg-blue-50">
-                {homework.map((hw, i) => (
-                  <HomeworkRow
-                    key={`${hw.childId}-${hw.date}-${i}`}
-                    event={hw}
-                    isLast={i === homework.length - 1}
-                    onToggle={() => toggleHomework(hw.childId, hw.date, hw.title)}
+              <View className="gap-0">
+                {homework.map((hw) => (
+                  <EventCard
+                    key={`${hw.childId}-${hw.date}-${hw.title}`}
+                    kind="homework"
+                    title={hw.title}
+                    description={hw.description || undefined}
+                    date={hw.date}
+                    assignees={[{ label: hw.childName, color: hw.childColor }]}
+                    completed={hw.completed}
+                    onToggleComplete={() => toggleHomework(hw.childId, hw.date, hw.title)}
+                    onPress={() =>
+                      setEditTarget({
+                        kind: 'school',
+                        data: hw,
+                        onToggle: () => toggleHomework(hw.childId, hw.date, hw.title),
+                      })
+                    }
                   />
                 ))}
               </View>
@@ -543,29 +426,28 @@ export default function DashboardScreen() {
               >
                 {isPast18 ? 'Husk i morgen!' : 'I morgen'}
               </Text>
-              <View
-                className={`overflow-hidden rounded-2xl ${
-                  isPast18
-                    ? 'border border-amber-100 bg-amber-50'
-                    : 'border border-gray-100 bg-gray-50'
-                }`}
-              >
-                {tomorrowSchoolReminders.map((ev, i) => (
-                  <SchoolReminderRow
-                    key={`tomorrow-school-${ev.childId}-${i}`}
-                    event={ev}
-                    isLast={
-                      i === tomorrowSchoolReminders.length - 1 &&
-                      tomorrowManualReminders.length === 0
-                    }
+              <View className="gap-0">
+                {tomorrowSchoolReminders.map((ev) => (
+                  <EventCard
+                    key={`tmrw-school-${ev.childId}-${ev.title}`}
+                    kind="reminder"
+                    title={ev.title}
+                    description={ev.description || undefined}
+                    date={ev.date}
+                    assignees={[{ label: ev.childName, color: ev.childColor }]}
+                    onPress={() => setEditTarget({ kind: 'school', data: ev })}
                   />
                 ))}
-                {tomorrowManualReminders.map((r, i) => (
-                  <ManualReminderRow
+                {tomorrowManualReminders.map((r) => (
+                  <EventCard
                     key={r.id}
-                    reminder={r}
-                    familyChildren={familyChildren}
-                    isLast={i === tomorrowManualReminders.length - 1}
+                    kind="reminder"
+                    title={r.title}
+                    description={r.description || undefined}
+                    date={r.date}
+                    time={r.time ?? undefined}
+                    assignees={resolveAssignees(r.assignedTo, familyChildren)}
+                    onPress={() => setEditTarget({ kind: 'reminder', data: r })}
                   />
                 ))}
               </View>
@@ -600,6 +482,9 @@ export default function DashboardScreen() {
         }}
         onClose={() => setShowOverrideModal(false)}
       />
+
+      {/* Event edit modal */}
+      <EventEditModal target={editTarget} onClose={() => setEditTarget(null)} />
     </SafeAreaView>
   );
 }

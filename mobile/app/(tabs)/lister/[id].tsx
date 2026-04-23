@@ -173,7 +173,7 @@ export default function ListDetailScreen() {
   // ── render ─────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={[]}>
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-4">
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>

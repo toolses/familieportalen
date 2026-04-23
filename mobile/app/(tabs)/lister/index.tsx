@@ -103,18 +103,10 @@ export default function ListerScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={[]}>
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 pb-3 pt-4">
+      <View className="px-4 pb-3 pt-4">
         <Text className="text-2xl font-bold text-gray-900">Lister</Text>
-        <TouchableOpacity
-          onPress={() => setShowModal(true)}
-          className="flex-row items-center gap-1.5 rounded-xl bg-indigo-500 px-3 py-2"
-          activeOpacity={0.8}
-        >
-          <Plus size={15} color="white" />
-          <Text className="text-sm font-semibold text-white">Ny pakkeliste</Text>
-        </TouchableOpacity>
       </View>
 
       {isLoading ? (
@@ -147,9 +139,19 @@ export default function ListerScreen() {
           )}
 
           {/* Pakkelister */}
-          <Text className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Pakkelister
-          </Text>
+          <View className="mb-2 mt-6 flex-row items-center justify-between">
+            <Text className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Pakkelister
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowModal(true)}
+              className="flex-row items-center gap-1 rounded-xl bg-indigo-500 px-2.5 py-1.5"
+              activeOpacity={0.8}
+            >
+              <Plus size={13} color="white" />
+              <Text className="text-xs font-semibold text-white">Ny</Text>
+            </TouchableOpacity>
+          </View>
 
           {pakkelister.length === 0 ? (
             <View className="items-center rounded-2xl bg-white px-4 py-8">
