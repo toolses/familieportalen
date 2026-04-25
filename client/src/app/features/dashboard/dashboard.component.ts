@@ -4,7 +4,7 @@ import { SchoolDataService } from '../../shared/services/school-data.service';
 import { ResidencyService } from '../../shared/services/residency.service';
 import { GoogleCalendarService, GoogleCalendarEvent } from '../../shared/services/google-calendar.service';
 import { SchoolEvent, Child, ManualReminder, ManualCalendarEvent, AssignedTo } from '../school-plan/models/school-plan.models';
-import { formatDateShort, dayName } from '../../shared/utils/date-utils';
+import { formatDateShort, dayName, getISOWeekYear } from '../../shared/utils/date-utils';
 import { SwipeDirective } from '../../shared/directives/swipe.directive';
 import { EventEditSheetComponent } from '../../shared/components/event-edit-sheet.component';
 import { ReminderSheetComponent } from '../../shared/components/reminder-sheet.component';
@@ -563,14 +563,17 @@ export class DashboardComponent {
     return this.data.manualReminders().filter((r) => this.reminderOccursOnDate(r, date));
   });
 
-  // Ukelekser grouped per child
+  // Ukelekser grouped per child — kun for inneværende uke
   allUkelekser = computed<ChildUkelekser[]>(() => {
     const children = this.data.children();
     const plansMap = this.data.plansMap();
+    const { uke: currentUke, aar: currentAar } = getISOWeekYear(this.todayIso);
     const result: ChildUkelekser[] = [];
     for (const child of children) {
       const plans = plansMap[child.id] ?? [];
-      const plan = plans.length > 0 ? plans[plans.length - 1] : null;
+      const plan = plans.find(
+        (p) => p.metadata.uke === currentUke && p.metadata.aar === currentAar
+      ) ?? null;
       if (!plan) continue;
       const ukelekser = plan.events.filter((e) => e.category === 'homework' && this.isUkelekse(e));
       if (ukelekser.length > 0) result.push({ child, events: ukelekser });
