@@ -110,6 +110,12 @@ export class NotificationService {
    * Sender et test-varsel til den innloggede brukeren (kun for admins).
    * Kaller POST /api/notifications/test på backend.
    */
+  async triggerDailyReminders(): Promise<void> {
+    await firstValueFrom(
+      this.http.post('/api/notifications/trigger-daily-reminders', {})
+    );
+  }
+
   async sendTestNotification(): Promise<{ sent: number; failed: number; message?: string }> {
     return firstValueFrom(
       this.http.post<{ sent: number; failed: number; message?: string }>(

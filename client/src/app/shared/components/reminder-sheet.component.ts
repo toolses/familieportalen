@@ -14,7 +14,7 @@ type AssignedToOption =
   standalone: true,
   imports: [FormsModule],
   template: `
-    <div class="fixed inset-0 z-50 flex flex-col justify-end">
+    <div class="fixed inset-0 z-55 flex flex-col justify-end">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="cancelled.emit()"></div>
       <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 safe-bottom shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto modal-sheet">
         <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1"></div>
@@ -52,8 +52,23 @@ type AssignedToOption =
             <label class="block text-xs font-medium text-gray-500 mb-1">Klokkeslett (valgfritt)</label>
             <label class="relative block w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-left bg-white focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer">
               @if (time) { {{ time }} } @else { <span class="text-gray-400">––:––</span> }
-              <input type="time" [(ngModel)]="time"
+              <input type="time" [(ngModel)]="time" (ngModelChange)="onTimeChange($event)"
                      class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+            </label>
+          </div>
+
+          <!-- Push-varsel -->
+          <div>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <div class="relative">
+                <input type="checkbox" [(ngModel)]="notify" class="sr-only" />
+                <div class="w-10 h-6 rounded-full transition-colors"
+                     [class]="notify ? 'bg-amber-400' : 'bg-gray-200'">
+                  <div class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                       [class.translate-x-4]="notify"></div>
+                </div>
+              </div>
+              <span class="text-sm font-medium text-gray-700">Send push-varsel</span>
             </label>
           </div>
 
@@ -157,6 +172,7 @@ export class ReminderSheetComponent {
   description = '';
   date = '';
   time = '';
+  notify = false;
   isSchoolRelated = false;
   selectedAssigned: AssignedToOption[] = [];
   recurrenceType: 'weekly' | 'biweekly' | null = null;
@@ -180,6 +196,7 @@ export class ReminderSheetComponent {
         this.description = r.description;
         this.date = r.date;
         this.time = r.time ?? '';
+        this.notify = r.notify ?? false;
         this.isSchoolRelated = r.isSchoolRelated;
         this.selectedAssigned = r.assignedTo as AssignedToOption[];
         this.recurrenceType = r.recurrence?.type ?? null;
@@ -188,6 +205,7 @@ export class ReminderSheetComponent {
         this.description = '';
         this.date = def || new Date().toISOString().slice(0, 10);
         this.time = '';
+        this.notify = false;
         this.isSchoolRelated = false;
         this.selectedAssigned = [];
         this.recurrenceType = null;
@@ -225,6 +243,8 @@ export class ReminderSheetComponent {
     }
   }
 
+  onTimeChange(_value: string): void {}
+
   canSave(): boolean {
     return !!this.title.trim() && !!this.date && this.selectedAssigned.length > 0;
   }
@@ -240,6 +260,7 @@ export class ReminderSheetComponent {
       description: this.description.trim(),
       date: this.date,
       time: this.time || null,
+      notify: this.notify,
       isSchoolRelated: this.isSchoolRelated,
       assignedTo,
       recurrence,

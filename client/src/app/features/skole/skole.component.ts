@@ -1,7 +1,7 @@
-import { Component, computed, inject, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, OnInit, effect, untracked } from '@angular/core';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { SchoolEvent, ManualReminder } from '../school-plan/models/school-plan.models';
-import { getDatesOfWeek, formatDateShort, dayName } from '../../shared/utils/date-utils';
+import { getDatesOfWeek, formatDateShort, dayName, getMondayOfWeek, getISOWeekYear } from '../../shared/utils/date-utils';
 import { ImageCaptureComponent } from '../school-plan/image-capture.component';
 import { PlanReviewComponent } from '../school-plan/plan-review.component';
 import { SchoolPlanService } from '../school-plan/services/school-plan.service';
@@ -11,6 +11,7 @@ import { downscaleBase64Image } from '../../shared/utils/image-utils';
 import { SwipeDirective } from '../../shared/directives/swipe.directive';
 import { EventEditSheetComponent, WeekDayOption } from '../../shared/components/event-edit-sheet.component';
 import { HomeworkItemComponent } from '../../shared/components/homework-item.component';
+import { ReminderSheetComponent } from '../../shared/components/reminder-sheet.component';
 
 interface DayInfo {
   date: string;
@@ -24,7 +25,7 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
 @Component({
   selector: 'app-skole',
   standalone: true,
-  imports: [ImageCaptureComponent, PlanReviewComponent, FormsModule, SwipeDirective, EventEditSheetComponent, HomeworkItemComponent],
+  imports: [ImageCaptureComponent, PlanReviewComponent, FormsModule, SwipeDirective, EventEditSheetComponent, HomeworkItemComponent, ReminderSheetComponent],
   template: `
     @switch (view()) {
       @case ('WEEK') {
@@ -46,32 +47,24 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
           </div>
         }
 
-        @if (!data.activePlan()) {
-          <!-- No plan yet -->
-          <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
-            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500">
-                <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
-              </svg>
-            </div>
-            <h2 class="text-xl font-bold text-gray-800 mb-2">Ingen ukeplan ennå</h2>
-            <p class="text-gray-500 mb-8 max-w-xs">Skann en ukeplan for å komme i gang.</p>
-            <button (click)="view.set('SCAN')"
-                    class="bg-blue-600 text-white px-8 py-3 rounded-xl font-medium text-lg shadow-lg shadow-blue-200 active:scale-95 transition-transform">
-              Skann ukeplan
-            </button>
-          </div>
-        } @else {
-          <div class="px-4 pt-2 pb-6 space-y-4" appSwipe (swipeLeft)="nextDay()" (swipeRight)="prevDay()">
+        <div class="px-4 pt-2 pb-6 space-y-4" appSwipe (swipeLeft)="nextDay()" (swipeRight)="prevDay()">
             <!-- Week header -->
             <div class="flex items-center justify-between">
-              <h2 class="text-lg font-bold text-gray-800">
-                Uke {{ data.activePlan()!.metadata.uke }}
-              </h2>
+              <div class="flex items-center gap-1">
+                <button (click)="prevWeek()" class="p-1.5 rounded-xl text-gray-400 hover:bg-gray-100 active:scale-90 transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <h2 class="text-lg font-bold text-gray-800 px-1">
+                  Uke {{ viewedUkeAar()?.uke }}
+                </h2>
+                <button (click)="nextWeek()" class="p-1.5 rounded-xl text-gray-400 hover:bg-gray-100 active:scale-90 transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
               <button (click)="view.set('SCAN')"
                       class="text-sm text-blue-600 font-medium flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Ny skann
+                Skann ukeplan
               </button>
             </div>
 
@@ -110,21 +103,26 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </button>
-                @if (infoExpanded()) {
-                  @for (event of informationEvents(); track $index) {
-                    <button (click)="openEditEvent(event)"
-                            class="w-full flex gap-3 items-start bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-left active:bg-emerald-100 transition-colors">
-                      <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"></div>
-                      <div class="flex-1 min-w-0">
-                        <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
-                        @if (event.description) {
-                          <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
-                        }
-                      </div>
-                      <span class="text-[10px] text-emerald-600 font-medium bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">Info</span>
-                    </button>
-                  }
-                }
+                <div class="grid transition-all duration-300 ease-in-out"
+                     [class]="infoExpanded() ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'">
+                  <div class="overflow-hidden">
+                    <div class="space-y-2 pt-1">
+                      @for (event of informationEvents(); track $index) {
+                        <button (click)="openEditEvent(event)"
+                                class="w-full flex gap-3 items-start bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-left active:bg-emerald-100 transition-colors">
+                          <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"></div>
+                          <div class="flex-1 min-w-0">
+                            <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
+                            @if (event.description) {
+                              <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                            }
+                          </div>
+                          <span class="text-[10px] text-emerald-600 font-medium bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">Info</span>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                </div>
               </div>
             }
 
@@ -146,7 +144,8 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                   </button>
                 }
                 @for (reminder of schoolManualReminders(); track reminder.id) {
-                  <div class="flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3">
+                  <button (click)="editingReminder.set(reminder)"
+                          class="w-full flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3 text-left active:bg-amber-100 transition-colors">
                     <div class="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2">
@@ -160,7 +159,7 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                       }
                     </div>
                     <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
-                  </div>
+                  </button>
                 }
               </div>
             }
@@ -174,6 +173,14 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                     [event]="event"
                     (edit)="openEditEvent(event)" />
                 }
+              </div>
+            }
+
+            <!-- Empty state when no plan and no reminders -->
+            @if (!viewedPlan() && informationEvents().length === 0 && reminderEvents().length === 0 && schoolManualReminders().length === 0 && homeworkEvents().length === 0) {
+              <div class="flex flex-col items-center py-12 text-center text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-3 text-gray-300"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                <p class="text-sm">Ingen ukeplan for denne uken</p>
               </div>
             }
 
@@ -211,7 +218,6 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                    (click)="$event.stopPropagation()" />
             </div>
           }
-        }
       }
 
       @case ('SCAN') {
@@ -303,6 +309,15 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
       }
     }
 
+    @if (editingReminder() !== undefined) {
+      <app-reminder-sheet
+        [reminder]="editingReminder() ?? null"
+        [defaultDate]="selectedDate()"
+        (saved)="onReminderSaved($event)"
+        (deleted)="onReminderDeleted()"
+        (cancelled)="editingReminder.set(undefined)" />
+    }
+
     @if (editingEvent()) {
       <app-event-edit-sheet
         [event]="editingEvent()!"
@@ -343,10 +358,25 @@ export class SkoleComponent implements OnInit {
   saveSuccess = signal(false);
   showChildPicker = signal(false);
 
+  viewedMonday = signal('');
+
+  viewedUkeAar = computed(() => {
+    const m = this.viewedMonday();
+    return m ? getISOWeekYear(m) : null;
+  });
+
+  viewedPlan = computed(() => {
+    const info = this.viewedUkeAar();
+    const childId = this.data.activeChildId();
+    if (!info || !childId) return null;
+    const plans = this.data.plansMap()[childId] ?? [];
+    return plans.find((p) => p.metadata.uke === info.uke && p.metadata.aar === info.aar) ?? null;
+  });
+
   private weekDateStrings = computed(() => {
-    const plan = this.data.activePlan();
-    if (!plan) return [];
-    return getDatesOfWeek(plan.metadata.uke, plan.metadata.aar);
+    const info = this.viewedUkeAar();
+    if (!info) return [];
+    return getDatesOfWeek(info.uke, info.aar);
   });
 
   weekDays = computed<DayInfo[]>(() => {
@@ -360,13 +390,13 @@ export class SkoleComponent implements OnInit {
 
   /** Information events — shown on every day regardless of their date */
   informationEvents = computed(() => {
-    const plan = this.data.activePlan();
+    const plan = this.viewedPlan();
     if (!plan || !this.selectedDate()) return [];
     return plan.events.filter((e) => e.category === 'information');
   });
 
   reminderEvents = computed(() => {
-    const plan = this.data.activePlan();
+    const plan = this.viewedPlan();
     const date = this.selectedDate();
     if (!plan || !date) return [];
     return plan.events.filter((e) => e.date === date && e.category === 'reminder');
@@ -374,13 +404,18 @@ export class SkoleComponent implements OnInit {
 
   schoolManualReminders = computed<ManualReminder[]>(() => {
     const date = this.selectedDate();
-    if (!date) return [];
+    const childId = this.data.activeChildId();
+    if (!date || !childId) return [];
     return this.data.manualReminders()
-      .filter((r) => r.isSchoolRelated && this.reminderOccursOnDate(r, date));
+      .filter((r) =>
+        r.isSchoolRelated &&
+        this.reminderOccursOnDate(r, date) &&
+        r.assignedTo.some((a) => a.type === 'child' && a.childId === childId)
+      );
   });
 
   homeworkEvents = computed(() => {
-    const plan = this.data.activePlan();
+    const plan = this.viewedPlan();
     const date = this.selectedDate();
     if (!plan || !date) return [];
     return plan.events.filter((e) =>
@@ -388,10 +423,11 @@ export class SkoleComponent implements OnInit {
     );
   });
 
-  planImages = computed(() => this.data.activePlan()?.images ?? null);
+  planImages = computed(() => this.viewedPlan()?.images ?? null);
   lightboxImage = signal<string | null>(null);
 
   editingEvent = signal<SchoolEvent | null>(null);
+  editingReminder = signal<ManualReminder | undefined>(undefined);
 
   weekDayOptions = computed<WeekDayOption[]>(() =>
     this.weekDays().map((d) => ({
@@ -400,23 +436,57 @@ export class SkoleComponent implements OnInit {
     }))
   );
 
+  constructor() {
+    // Reset to active plan's week when switching children
+    effect(() => {
+      this.data.activeChildId(); // track
+      untracked(() => this.resetToActivePlanWeek());
+    });
+  }
+
   ngOnInit() {
-    this.initSelectedDate();
+    this.resetToActivePlanWeek();
+  }
+
+  private resetToActivePlanWeek() {
+    const plan = this.data.activePlan();
+    const monday = plan
+      ? getDatesOfWeek(plan.metadata.uke, plan.metadata.aar)[0]
+      : getMondayOfWeek(this.today);
+    this.viewedMonday.set(monday);
+    const dates = getDatesOfWeek(getISOWeekYear(monday).uke, getISOWeekYear(monday).aar);
+    const todayMatch = dates.find((d) => d === this.today);
+    this.selectedDate.set(todayMatch ?? dates[0] ?? this.today);
   }
 
   private initSelectedDate() {
-    const plan = this.data.activePlan();
-    if (plan) {
-      const dates = getDatesOfWeek(plan.metadata.uke, plan.metadata.aar);
-      const todayMatch = dates.find((d) => d === this.today);
-      this.selectedDate.set(todayMatch ?? dates[0] ?? '');
-    }
+    const dates = this.weekDateStrings();
+    const todayMatch = dates.find((d) => d === this.today);
+    this.selectedDate.set(todayMatch ?? dates[0] ?? this.today);
+  }
+
+  prevWeek(): void {
+    const d = new Date(this.viewedMonday() + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 7);
+    this.viewedMonday.set(d.toISOString().slice(0, 10));
+    this.initSelectedDate();
+  }
+
+  nextWeek(): void {
+    const d = new Date(this.viewedMonday() + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + 7);
+    this.viewedMonday.set(d.toISOString().slice(0, 10));
+    this.initSelectedDate();
   }
 
   dayHasReminders(date: string): boolean {
-    const plan = this.data.activePlan();
+    const plan = this.viewedPlan();
+    const childId = this.data.activeChildId();
     const hasSchoolReminder = plan?.events.some((e) => e.date === date && e.category === 'reminder') ?? false;
-    const hasManualReminder = this.data.manualReminders().some((r) => r.isSchoolRelated && this.reminderOccursOnDate(r, date));
+    const hasManualReminder = this.data.manualReminders().some(
+      (r) => r.isSchoolRelated && this.reminderOccursOnDate(r, date) &&
+        r.assignedTo.some((a) => a.type === 'child' && a.childId === childId)
+    );
     return hasSchoolReminder || hasManualReminder;
   }
 
@@ -449,6 +519,18 @@ export class SkoleComponent implements OnInit {
 
   openEditEvent(event: SchoolEvent): void {
     this.editingEvent.set(event);
+  }
+
+  onReminderSaved(payload: Omit<ManualReminder, 'id' | 'createdAt'>): void {
+    const editing = this.editingReminder();
+    if (editing) this.data.updateManualReminder(editing.id, payload);
+    this.editingReminder.set(undefined);
+  }
+
+  onReminderDeleted(): void {
+    const editing = this.editingReminder();
+    if (editing) this.data.deleteManualReminder(editing.id);
+    this.editingReminder.set(undefined);
   }
 
   onEventSaved(updated: SchoolEvent): void {

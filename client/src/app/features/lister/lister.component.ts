@@ -84,7 +84,7 @@ import { ListService, AppList } from '../../shared/services/list.service';
 
     <!-- Ny pakkeliste dialog -->
     @if (showDialog()) {
-      <div class="fixed inset-0 bg-black/40 z-50 flex items-end justify-center"
+      <div class="fixed inset-0 bg-black/40 z-55 flex items-end justify-center"
            (click)="closeDialog()">
         <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-6 pb-10 shadow-2xl"
              (click)="$event.stopPropagation()">

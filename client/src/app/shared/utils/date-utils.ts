@@ -40,8 +40,27 @@ export function formatDateFull(isoDate: string): string {
 }
 
 /**
- * Returns the Norwegian day name for an ISO date string.
+ * Returns ISO date string for Monday of the week containing the given date.
  */
+export function getMondayOfWeek(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00Z');
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() - day + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns ISO week number and year for the given ISO date string.
+ */
+export function getISOWeekYear(isoDate: string): { uke: number; aar: number } {
+  const d = new Date(isoDate + 'T00:00:00Z');
+  const thu = new Date(d);
+  thu.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(thu.getUTCFullYear(), 0, 1));
+  const uke = Math.ceil(((thu.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return { uke, aar: thu.getUTCFullYear() };
+}
+
 export function dayName(isoDate: string): string {
   const names = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
   const d = new Date(isoDate + 'T00:00:00Z');

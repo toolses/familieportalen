@@ -12,7 +12,7 @@ export interface WeekDayOption {
   standalone: true,
   imports: [FormsModule],
   template: `
-    <div class="fixed inset-0 z-50 flex flex-col justify-end">
+    <div class="fixed inset-0 z-55 flex flex-col justify-end">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="cancelled.emit()"></div>
       <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 safe-bottom shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto modal-sheet">
         <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1"></div>

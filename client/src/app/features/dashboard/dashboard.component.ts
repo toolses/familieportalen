@@ -364,16 +364,19 @@ interface ChildUkelekser {
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
-              @if (isUkelekseOpen(entry.child.id)) {
-                <div class="px-4 pb-4 space-y-2">
-                  @for (event of entry.events; track $index) {
-                    <app-homework-item
-                      [event]="event"
-                      [subtle]="true"
-                      (edit)="openEditEventForChild(entry.child, event)" />
-                  }
+              <div class="grid transition-all duration-300 ease-in-out"
+                   [class]="isUkelekseOpen(entry.child.id) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'">
+                <div class="overflow-hidden">
+                  <div class="px-4 pb-4 space-y-2">
+                    @for (event of entry.events; track $index) {
+                      <app-homework-item
+                        [event]="event"
+                        [subtle]="true"
+                        (edit)="openEditEventForChild(entry.child, event)" />
+                    }
+                  </div>
                 </div>
-              }
+              </div>
             </div>
           }
 

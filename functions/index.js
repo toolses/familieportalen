@@ -73,4 +73,4 @@ app.use((err, req, res, next) => {
 export const api = onRequest({ region: 'europe-west1', memory: '512MiB', invoker: 'public' }, app);
 
 // ── Scheduled push notifications ────────────────────────────────────────────
-export { notifyEveBeforeSwitch, notifyOnSwitchDay } from './notifications/scheduled-notifications.js';
+export { notifyEveBeforeSwitch, notifyOnSwitchDay, notifyDailyReminders } from './notifications/scheduled-notifications.js';

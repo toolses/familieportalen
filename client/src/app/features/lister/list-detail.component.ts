@@ -106,7 +106,7 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
                     </div>
                   }
                   @if (completedItems().length > 1) {
-                    <button (click)="clearCompleted(lst.id)"
+                    <button (click)="isClearCompletedModalOpen.set(true)"
                             class="w-full py-2 text-xs text-gray-400 underline text-center active:opacity-60 transition-opacity">
                       Fjern alle fullførte
                     </button>
@@ -144,6 +144,33 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
           <p class="text-gray-500 font-medium mb-2">Listen ble ikke funnet</p>
           <button (click)="goBack()" class="text-blue-600 text-sm underline">Tilbake til lister</button>
         }
+      </div>
+    }
+
+    <!-- Bekreftelsesmodal for å fjerne fullførte -->
+    @if (isClearCompletedModalOpen()) {
+      <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-6"
+           (click)="isClearCompletedModalOpen.set(false)">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl"
+             (click)="$event.stopPropagation()">
+          <div class="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-gray-800 text-center mb-2">Fjerne alle fullførte?</h3>
+          <p class="text-sm text-gray-500 text-center mb-6 leading-relaxed">
+            Dette sletter {{ completedItems().length }} fullførte punkter permanent. Handlingen kan ikke angres.
+          </p>
+          <div class="flex gap-3">
+            <button (click)="isClearCompletedModalOpen.set(false)"
+                    class="flex-1 py-3 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-600 active:scale-[0.97] transition-transform">
+              Avbryt
+            </button>
+            <button (click)="confirmClearCompleted()"
+                    class="flex-1 py-3 bg-red-500 rounded-2xl text-sm font-semibold text-white shadow-sm shadow-red-200 active:scale-[0.97] transition-transform">
+              Fjern alle
+            </button>
+          </div>
+        </div>
       </div>
     }
 
@@ -185,6 +212,7 @@ export class ListDetailComponent {
   readonly showCompleted = signal(true);
   readonly swipingId = signal<string | null>(null);
   readonly isResetModalOpen = signal(false);
+  readonly isClearCompletedModalOpen = signal(false);
   readonly pendingIds = signal<Set<string>>(new Set());
   private readonly pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -258,6 +286,13 @@ export class ListDetailComponent {
     for (const item of lst.items.filter((i) => i.completed)) {
       await this.listService.deleteItem(listId, item.id);
     }
+  }
+
+  async confirmClearCompleted(): Promise<void> {
+    const lst = this.list();
+    if (!lst) return;
+    this.isClearCompletedModalOpen.set(false);
+    await this.clearCompleted(lst.id);
   }
 
   async confirmReset(): Promise<void> {

@@ -117,6 +117,17 @@ type ConfirmMode = 'delete-child' | 'clear-all';
               Send test-varsel
             }
           </button>
+          <button (click)="triggerDailyReminders()"
+                  [disabled]="dailyRemindersLoading()"
+                  class="flex items-center gap-2 w-full justify-center py-2.5 rounded-xl bg-amber-500 text-white text-sm font-medium active:scale-[0.98] transition-all disabled:opacity-40">
+            @if (dailyRemindersLoading()) {
+              <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              Sender...
+            } @else {
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Trigger daglige påminnelsesvarsler
+            }
+          </button>
         </div>
       }
 
@@ -361,7 +372,7 @@ type ConfirmMode = 'delete-child' | 'clear-all';
     </div>
 
     @if (modalOpen()) {
-      <div class="fixed inset-0 z-50 flex flex-col justify-end">
+      <div class="fixed inset-0 z-55 flex flex-col justify-end">
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="closeModal()"></div>
         <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 safe-bottom shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto modal-sheet">
           <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1"></div>
@@ -604,6 +615,7 @@ export class SettingsComponent {
   pushLoading = signal(false);
   testPushLoading = signal(false);
   testPushResult = signal<{ ok: boolean; message: string } | null>(null);
+  dailyRemindersLoading = signal(false);
 
   modalOpen = signal(false);
   editingChild = signal<Child | null>(null);
@@ -706,6 +718,18 @@ export class SettingsComponent {
       await this.notifications.requestPermission();
     } finally {
       this.pushLoading.set(false);
+    }
+  }
+
+  async triggerDailyReminders() {
+    this.dailyRemindersLoading.set(true);
+    try {
+      await this.notifications.triggerDailyReminders();
+      this.testPushResult.set({ ok: true, message: 'Daglige påminnelsesvarsler sendt!' });
+    } catch {
+      this.testPushResult.set({ ok: false, message: 'Feil: Kunne ikke sende påminnelsesvarsler.' });
+    } finally {
+      this.dailyRemindersLoading.set(false);
     }
   }
 

@@ -125,6 +125,24 @@ export async function checkResidencyAndNotify(dateA, dateB, buildPayload) {
   );
 }
 
+// ── Hjelper: sjekker om en påminnelse forekommer på en gitt dato ─────────────
+
+/**
+ * Speiler reminderOccursOnDate-logikken fra klienten.
+ * @param {{ date: string, recurrence: { type: string } | null }} reminder
+ * @param {string} date  ISO-dato (YYYY-MM-DD)
+ */
+export function reminderOccursOnDate(reminder, date) {
+  if (!reminder.recurrence) return reminder.date === date;
+  const startMs = new Date(reminder.date + 'T00:00:00Z').getTime();
+  const checkMs = new Date(date + 'T00:00:00Z').getTime();
+  if (checkMs < startMs) return false;
+  if (new Date(reminder.date + 'T00:00:00Z').getUTCDay() !== new Date(date + 'T00:00:00Z').getUTCDay()) return false;
+  const diffWeeks = Math.round((checkMs - startMs) / (7 * 24 * 60 * 60 * 1000));
+  if (reminder.recurrence.type === 'weekly') return true;
+  return diffWeeks % 2 === 0;
+}
+
 // ── Eksporterte Cloud Functions ───────────────────────────────────────────────
 
 /** Kl. 19:00 — Varsler kvelden FØR byttedagen */
@@ -166,5 +184,52 @@ export const notifyOnSwitchDay = onSchedule(
         fcmOptions: { link: '/dashboard' },
       },
     }));
+  }
+);
+
+/** Kl. 06:00 — Sender ett daglig push-varsel med dagens påminnelser */
+export const notifyDailyReminders = onSchedule(
+  { schedule: '0 6 * * *', timeZone: 'Europe/Oslo', region: 'europe-west1' },
+  async () => {
+    const today = todayOslo();
+    const db = getFirestore();
+    const usersSnap = await db.collection('users').get();
+
+    let totalSent = 0;
+
+    for (const userDoc of usersSnap.docs) {
+      const uid = userDoc.id;
+      const userData = userDoc.data();
+      const tokens = userData.fcmTokens ?? [];
+      if (tokens.length === 0) continue;
+
+      const reminders = userData.manualReminders ?? [];
+      const todaysReminders = reminders.filter(
+        (r) => r.notify && reminderOccursOnDate(r, today)
+      );
+
+      if (todaysReminders.length === 0) continue;
+
+      let title, body;
+      if (todaysReminders.length === 1) {
+        const r = todaysReminders[0];
+        title = `🔔 ${r.title}`;
+        body = r.description || 'Du har en påminnelse i dag.';
+      } else {
+        title = `🔔 ${todaysReminders.length} påminnelser i dag`;
+        body = todaysReminders.map((r) => r.title).join(', ');
+      }
+
+      const { sent } = await sendAndCleanTokens(uid, tokens, {
+        notification: { title, body },
+        webpush: {
+          notification: { icon: '/icon-192.png', badge: '/icon-192.png' },
+          fcmOptions: { link: '/' },
+        },
+      }, db);
+      totalSent += sent;
+    }
+
+    console.log(`[notifyDailyReminders] Sendt ${totalSent} varsel(er) for ${today}.`);
   }
 );

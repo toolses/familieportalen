@@ -467,7 +467,7 @@ interface CalendarDay {
     <!-- FAB: Legg til -->
     @if (!showNewItemMenu() && !editingEvent() && editingReminder() === undefined && editingCalendarEvent() === undefined && !showNewReminderSheet() && !showNewCalendarEventSheet()) {
       <button (click)="showNewItemMenu.set(true)"
-              class="fixed bottom-20 right-4 z-40 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all hover:bg-indigo-700">
+              class="fixed bottom-25 right-4 z-40 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all hover:bg-indigo-700">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
       </button>
     }
@@ -476,7 +476,7 @@ interface CalendarDay {
     @if (showNewItemMenu()) {
       <div class="fixed inset-0 z-50 flex flex-col justify-end">
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="showNewItemMenu.set(false)"></div>
-        <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 safe-bottom shadow-2xl space-y-3 modal-sheet">
+        <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-15 shadow-2xl space-y-3 modal-sheet">
           <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2"></div>
           <h3 class="text-base font-bold text-gray-900 text-center">Hva vil du legge til?</h3>
           <button (click)="openNewReminder()"

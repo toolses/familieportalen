@@ -70,6 +70,8 @@ export interface ManualReminder {
   date: string;
   /** Klokkeslett i HH:mm format, eller null */
   time: string | null;
+  /** Send push-varsel på angitt tidspunkt */
+  notify: boolean;
   isSchoolRelated: boolean;
   assignedTo: AssignedTo[];
   recurrence: RecurrenceRule | null;
