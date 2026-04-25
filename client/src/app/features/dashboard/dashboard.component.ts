@@ -348,7 +348,8 @@ interface ChildUkelekser {
             }
           }
 
-          <!-- Ukelekser per barn (sammenleggbar, default lukket) -->
+          <!-- Ukelekser per barn (sammenleggbar, default lukket) — kun man–tors -->
+          @if (isUkelekserVisible()) {
           @for (entry of allUkelekser(); track entry.child.id) {
             <div class="bg-blue-50 border border-blue-100 rounded-2xl overflow-hidden">
               <button (click)="toggleUkelekse(entry.child.id)"
@@ -379,6 +380,7 @@ interface ChildUkelekser {
               </div>
             </div>
           }
+          } <!-- /isUkelekserVisible -->
 
         }
       </div>
@@ -561,6 +563,13 @@ export class DashboardComponent {
   tomorrowManualReminders = computed<ManualReminder[]>(() => {
     const date = this.tomorrowDate();
     return this.data.manualReminders().filter((r) => this.reminderOccursOnDate(r, date));
+  });
+
+  // Ukelekser vises kun mandag–torsdag (0=søn,1=man,...,4=tor,5=fre,6=lør)
+  isUkelekserVisible = computed(() => {
+    const d = new Date(this.selectedDate() + 'T00:00:00');
+    const dow = d.getDay();
+    return dow >= 1 && dow <= 4;
   });
 
   // Ukelekser grouped per child — kun for inneværende uke

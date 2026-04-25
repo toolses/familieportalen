@@ -8,6 +8,6 @@ export const environment = {
     messagingSenderId: '745029363713',
     appId: '1:745029363713:web:06c83c8f351e5d69077800',
   },
-  // Hent fra Firebase Console → Prosjektinnstillinger → Cloud Messaging → Web Push-sertifikater
+  firestoreDatabaseId: 'develop',
   fcmVapidKey: 'BGf-duIdsGZ2AaH1akGU00hXsHiGK2YN2H28tx0CWkAKnO0IK7Rle86ep6ZHIxO7CNmOM10e88mRtfVsM_YQdmU',
 };

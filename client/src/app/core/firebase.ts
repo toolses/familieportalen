@@ -9,4 +9,5 @@ export const firebaseApp = initializeApp(environment.firebase);
 export const firebaseAuth = getAuth(firebaseApp);
 export const firebaseDb = initializeFirestore(firebaseApp, {
   localCache: persistentLocalCache(),
+  databaseId: environment.firestoreDatabaseId,
 });

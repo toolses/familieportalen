@@ -5,6 +5,7 @@ import { getApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { AuthService } from './auth.service';
+import { HouseholdService } from './household.service';
 import { environment } from '../../../environments/environment';
 import { firebaseDb as db } from '../../core/firebase';
 
@@ -14,6 +15,7 @@ export type PushPermissionState = 'default' | 'granted' | 'denied' | 'unsupporte
 export class NotificationService {
   private auth = inject(AuthService);
   private http = inject(HttpClient);
+  private household = inject(HouseholdService);
 
   /** Reflekterer nåværende tillatelsestatus, oppdateres etter kall til requestPermission() */
   readonly permissionState = signal<PushPermissionState>(this.currentPermission());
@@ -94,6 +96,7 @@ export class NotificationService {
 
       if (!existingTokens.includes(token)) {
         await setDoc(userRef, { fcmTokens: [...existingTokens, token] }, { merge: true });
+        await this.household.markHasPush(user.uid);
         console.log('[NotificationService] FCM-token lagret.');
       }
     } catch (err) {

@@ -18,6 +18,7 @@ export interface HouseholdMember {
   role: 'admin' | 'member';
   parentRole: 'Mamma' | 'Pappa' | null;
   joinedAt: string;
+  hasPush?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -166,6 +167,15 @@ export class HouseholdService {
       if (role !== null && m.parentRole === role) return { ...m, parentRole: null };
       return m;
     });
+    await updateDoc(doc(db, 'households', hid), { members: updatedMembers });
+  }
+
+  async markHasPush(uid: string): Promise<void> {
+    const hid = this.householdId();
+    if (!hid) return;
+    const updatedMembers = this.members().map((m) =>
+      m.uid === uid ? { ...m, hasPush: true } : m
+    );
     await updateDoc(doc(db, 'households', hid), { members: updatedMembers });
   }
 

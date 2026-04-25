@@ -29,23 +29,15 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
   template: `
     @switch (view()) {
       @case ('WEEK') {
-        <!-- Child Selector -->
-        @if (data.children().length > 1) {
-          <div class="flex gap-2 overflow-x-auto pb-1 px-4 pt-2 scrollbar-hide">
-            @for (child of data.children(); track child.id) {
-              <button
-                (click)="switchChild(child.id)"
-                class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium shrink-0 transition-all active:scale-[0.98]"
-                [class]="data.activeChildId() === child.id
-                  ? 'bg-white shadow-md ring-2 text-gray-900'
-                  : 'bg-gray-100 text-gray-500'"
-                [style.--tw-ring-color]="child.color">
-                <span class="w-3 h-3 rounded-full shrink-0" [style.background]="child.color"></span>
-                {{ child.name }}
-              </button>
-            }
-          </div>
-        }
+        <!-- Header -->
+        <div class="flex items-center justify-between px-4 pt-4 pb-2">
+          <h2 class="text-lg font-bold text-gray-800">Skole</h2>
+          <button (click)="view.set('SCAN')"
+                  class="text-sm text-blue-600 font-medium flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Skann ukeplan
+          </button>
+        </div>
 
         <div class="px-4 pt-2 pb-6 space-y-4" appSwipe (swipeLeft)="nextDay()" (swipeRight)="prevDay()">
             <!-- Week header -->
@@ -61,11 +53,23 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
               </div>
-              <button (click)="view.set('SCAN')"
-                      class="text-sm text-blue-600 font-medium flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Skann ukeplan
-              </button>
+              <!-- Child selector -->
+              @if (data.children().length > 1) {
+                <div class="flex gap-2 overflow-x-auto scrollbar-hide">
+                  @for (child of data.children(); track child.id) {
+                    <button
+                      (click)="switchChild(child.id)"
+                      class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium shrink-0 transition-all active:scale-[0.98]"
+                      [class]="data.activeChildId() === child.id
+                        ? 'bg-white shadow-md ring-2 text-gray-900'
+                        : 'bg-gray-100 text-gray-500'"
+                      [style.--tw-ring-color]="child.color">
+                      <span class="w-2.5 h-2.5 rounded-full shrink-0" [style.background]="child.color"></span>
+                      {{ child.name }}
+                    </button>
+                  }
+                </div>
+              }
             </div>
 
             <!-- Day selector -->
