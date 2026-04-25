@@ -567,7 +567,7 @@ export class DashboardComponent {
   allUkelekser = computed<ChildUkelekser[]>(() => {
     const children = this.data.children();
     const plansMap = this.data.plansMap();
-    const { uke: currentUke, aar: currentAar } = getISOWeekYear(this.todayIso);
+    const { uke: currentUke, aar: currentAar } = getISOWeekYear(this.selectedDate());
     const result: ChildUkelekser[] = [];
     for (const child of children) {
       const plans = plansMap[child.id] ?? [];
