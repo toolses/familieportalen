@@ -256,6 +256,73 @@ describe('SchoolDataService – manualReminders', () => {
   });
 });
 
+// ── savePlanForChild ──────────────────────────────────────────
+import type { PlanMetadata, SchoolEvent } from '../../features/school-plan/models/school-plan.models';
+
+const minMeta = (uke: number, aar = 2025): PlanMetadata => ({ uke, aar });
+
+const minEvent = (title: string): SchoolEvent => ({
+  date: '2025-04-28',
+  title,
+  description: '',
+  category: 'information',
+});
+
+describe('SchoolDataService – savePlanForChild', () => {
+  let service: SchoolDataService;
+  const childId = 'barn-1';
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    mockHouseholdId.set(null);
+
+    const injector = Injector.create({
+      providers: [
+        SchoolDataService,
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: HouseholdService, useValue: mockHouseholdService },
+        { provide: DestroyRef, useValue: { onDestroy: vi.fn() } },
+      ],
+    });
+    service = injector.get(SchoolDataService);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('lagrer uke 17 og uke 18 som separate planer', () => {
+    service.savePlanForChild(childId, minMeta(17), [minEvent('Kunst og håndverk')]);
+    service.savePlanForChild(childId, minMeta(18), [minEvent('Matematikk')]);
+
+    const plans = service.plansMap()[childId];
+    expect(plans).toHaveLength(2);
+    expect(plans[0].metadata.uke).toBe(17);
+    expect(plans[1].metadata.uke).toBe(18);
+  });
+
+  it('uke 17-planen er urørt etter at uke 18 skannes inn', () => {
+    service.savePlanForChild(childId, minMeta(17), [minEvent('Kunst og håndverk')]);
+    service.savePlanForChild(childId, minMeta(18), [minEvent('Matematikk')]);
+
+    const uke17 = service.plansMap()[childId].find((p) => p.metadata.uke === 17);
+    expect(uke17).toBeDefined();
+    expect(uke17!.events[0].title).toBe('Kunst og håndverk');
+  });
+
+  it('overskriver bare riktig uke ved ny skanning av samme uke', () => {
+    service.savePlanForChild(childId, minMeta(17), [minEvent('Gammel tittel')]);
+    service.savePlanForChild(childId, minMeta(18), [minEvent('Uke 18-hendelse')]);
+    service.savePlanForChild(childId, minMeta(18), [minEvent('Oppdatert uke 18')]);
+
+    const plans = service.plansMap()[childId];
+    expect(plans).toHaveLength(2);
+    expect(plans.find((p) => p.metadata.uke === 17)!.events[0].title).toBe('Gammel tittel');
+    expect(plans.find((p) => p.metadata.uke === 18)!.events[0].title).toBe('Oppdatert uke 18');
+  });
+});
+
 describe('SchoolDataService – calendarEvents', () => {
   setupTestBed();
   let service: SchoolDataService;

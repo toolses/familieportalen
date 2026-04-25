@@ -7,11 +7,11 @@ import { ResidencyPlannerComponent } from './residency-planner.component';
 import { Child } from '../school-plan/models/school-plan.models';
 import { NotificationService } from '../../shared/services/notification.service';
 import { AuthService } from '../../shared/services/auth.service';
-import { HouseholdService } from '../../shared/services/household.service';
+import { HouseholdService, HouseholdMember } from '../../shared/services/household.service';
 
 const PRESET_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#06B6D4'];
 
-type ConfirmMode = 'delete-child' | 'clear-all';
+type ConfirmMode = 'delete-child' | 'clear-all' | 'delete-member';
 
 @Component({
   selector: 'app-settings',
@@ -28,11 +28,13 @@ type ConfirmMode = 'delete-child' | 'clear-all';
                 [class]="activeTab() === 'generelt' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">
           Generelt
         </button>
-        <button (click)="activeTab.set('admin')"
-                class="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
-                [class]="activeTab() === 'admin' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">
-          Admin
-        </button>
+        @if (auth.isAdmin()) {
+          <button (click)="activeTab.set('admin')"
+                  class="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
+                  [class]="activeTab() === 'admin' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'">
+            Admin
+          </button>
+        }
       </div>
 
       @if (activeTab() === 'admin') {
@@ -212,60 +214,28 @@ type ConfirmMode = 'delete-child' | 'clear-all';
           </div>
 
           <!-- Medlemsliste -->
-          <div class="space-y-3">
+          <div class="space-y-2">
             @for (member of household.members(); track member.uid) {
-              <div class="space-y-1.5">
-                <div class="flex items-center gap-3">
-                  @if (member.photoURL) {
-                    <img [src]="member.photoURL" class="w-8 h-8 rounded-full shrink-0" referrerpolicy="no-referrer" />
-                  } @else {
-                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm shrink-0">
-                      {{ member.displayName.charAt(0).toUpperCase() }}
-                    </div>
-                  }
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-800 truncate">{{ member.displayName }}</p>
-                    <p class="text-xs text-gray-400">{{ member.role === 'admin' ? 'Admin' : 'Medlem' }}</p>
-                  </div>
-                  @if (household.isAdmin() && member.uid !== auth.user()?.uid) {
-                    @if (member.role === 'member') {
-                      <button (click)="promoteHouseholdMember(member.uid)"
-                              class="text-xs text-indigo-600 font-medium px-2 py-1 rounded-lg hover:bg-indigo-50 transition-colors shrink-0">
-                        Gjør admin
-                      </button>
-                    }
-                    <button (click)="removeHouseholdMember(member.uid)"
-                            class="text-xs text-red-500 font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition-colors shrink-0">
-                      Fjern
-                    </button>
-                  }
-                </div>
-                <!-- Mamma / Pappa rolle-valg (kun admin) -->
-                @if (household.isAdmin()) {
-                  <div class="flex gap-1.5 ml-11">
-                    <button (click)="setParentRole(member.uid, 'Mamma')"
-                            class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all active:scale-[0.97]"
-                            [class]="member.parentRole === 'Mamma'
-                              ? 'bg-rose-500 text-white'
-                              : 'bg-gray-100 text-gray-500 hover:bg-rose-50 hover:text-rose-600'">
-                      Mamma
-                    </button>
-                    <button (click)="setParentRole(member.uid, 'Pappa')"
-                            class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all active:scale-[0.97]"
-                            [class]="member.parentRole === 'Pappa'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-600'">
-                      Pappa
-                    </button>
-                    @if (member.parentRole) {
-                      <button (click)="setParentRole(member.uid, null)"
-                              class="px-2 py-1 rounded-lg text-xs text-gray-400 hover:text-gray-600 transition-all active:scale-[0.97]">
-                        ✕
-                      </button>
-                    }
+              <button (click)="openMemberSheet(member)"
+                      class="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                @if (member.photoURL) {
+                  <img [src]="member.photoURL" class="w-9 h-9 rounded-full shrink-0" referrerpolicy="no-referrer" />
+                } @else {
+                  <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm shrink-0">
+                    {{ member.displayName.charAt(0).toUpperCase() }}
                   </div>
                 }
-              </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-800 truncate">{{ member.displayName }}</p>
+                  <p class="text-xs text-gray-400">
+                    {{ member.role === 'admin' ? 'Admin' : 'Medlem' }}
+                    @if (member.parentRole) { · {{ member.parentRole }} }
+                  </p>
+                </div>
+                @if (household.isAdmin()) {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300 shrink-0"><path d="m9 18 6-6-6-6"/></svg>
+                }
+              </button>
             }
           </div>
 
@@ -474,6 +444,28 @@ type ConfirmMode = 'delete-child' | 'clear-all';
             </div>
           }
 
+          @if (confirmMode() === 'delete-member' && editingMember()) {
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-600"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="23" y1="8" y2="14"/><line x1="23" x2="17" y1="8" y2="14"/></svg>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-gray-900">Fjern {{ editingMember()!.displayName }}?</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Personen mister tilgang til husstanden.</p>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <button (click)="executeConfirm()"
+                      class="w-full bg-red-600 text-white py-3 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all">
+                Fjern fra husstanden
+              </button>
+              <button (click)="closeConfirm()"
+                      class="w-full py-3 rounded-xl font-medium text-sm text-gray-500 active:scale-[0.98] transition-all">
+                Avbryt
+              </button>
+            </div>
+          }
+
           @if (confirmMode() === 'clear-all') {
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
@@ -546,6 +538,83 @@ type ConfirmMode = 'delete-child' | 'clear-all';
         </div>
       </div>
     }
+
+    <!-- Rediger husstandsmedlem-sheet -->
+    @if (memberSheetOpen() && editingMember()) {
+      <div class="fixed inset-0 z-[70] flex flex-col justify-end">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" (click)="closeMemberSheet()"></div>
+        <div class="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 safe-bottom shadow-2xl space-y-5 modal-sheet">
+          <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1"></div>
+
+          <!-- Avatar + navn -->
+          <div class="flex items-center gap-4">
+            @if (editingMember()!.photoURL) {
+              <img [src]="editingMember()!.photoURL" class="w-14 h-14 rounded-full shrink-0" referrerpolicy="no-referrer" />
+            } @else {
+              <div class="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-xl shrink-0">
+                {{ editingMember()!.displayName.charAt(0).toUpperCase() }}
+              </div>
+            }
+            <div>
+              <h3 class="text-lg font-bold text-gray-900">{{ editingMember()!.displayName }}</h3>
+              <p class="text-sm text-gray-400">{{ editingMember()!.role === 'admin' ? 'Admin' : 'Medlem' }}</p>
+            </div>
+          </div>
+
+          <!-- Foreldre-rolle (kun admin) -->
+          @if (household.isAdmin()) {
+            <div class="space-y-2">
+              <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Rolle i familien</p>
+              <div class="flex gap-2">
+                <button (click)="setParentRole(editingMember()!.uid, 'Mamma')"
+                        class="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.97]"
+                        [class]="editingMember()!.parentRole === 'Mamma'
+                          ? 'bg-rose-500 text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-500'">
+                  Mamma
+                </button>
+                <button (click)="setParentRole(editingMember()!.uid, 'Pappa')"
+                        class="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.97]"
+                        [class]="editingMember()!.parentRole === 'Pappa'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-500'">
+                  Pappa
+                </button>
+                @if (editingMember()!.parentRole) {
+                  <button (click)="setParentRole(editingMember()!.uid, null)"
+                          class="px-3 py-2.5 rounded-xl text-sm text-gray-400 bg-gray-100 active:scale-[0.97] transition-all">
+                    ✕
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Admin-handlinger (ikke på seg selv) -->
+            @if (editingMember()!.uid !== auth.user()?.uid) {
+              <div class="space-y-2 pt-1 border-t">
+                @if (editingMember()!.role === 'member') {
+                  <button (click)="promoteHouseholdMember(editingMember()!.uid); closeMemberSheet()"
+                          class="flex items-center gap-2 w-full px-4 py-3 rounded-xl text-sm font-medium text-indigo-700 bg-indigo-50 active:scale-[0.98] transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>
+                    Gjør til admin
+                  </button>
+                }
+                <button (click)="confirmRemoveMember()"
+                        class="flex items-center gap-2 w-full px-4 py-3 rounded-xl text-sm font-medium text-red-600 bg-red-50 active:scale-[0.98] transition-all">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="23" y1="8" y2="14"/><line x1="23" x2="17" y1="8" y2="14"/></svg>
+                  Fjern {{ editingMember()!.displayName }} fra husstanden
+                </button>
+              </div>
+            }
+          }
+
+          <button (click)="closeMemberSheet()"
+                  class="w-full py-3 rounded-xl font-medium text-sm text-gray-500 active:scale-[0.98] transition-all">
+            Lukk
+          </button>
+        </div>
+      </div>
+    }
   `,
   styles: `
     .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 1.25rem); }
@@ -570,6 +639,8 @@ export class SettingsComponent {
   // Husstand
   codeCopied = signal(false);
   showJoinSheet = signal(false);
+  memberSheetOpen = signal(false);
+  editingMember = signal<HouseholdMember | null>(null);
   joinCode = '';
   joinLoading = signal(false);
   joinError = signal<string | null>(null);
@@ -625,6 +696,22 @@ export class SettingsComponent {
 
   confirmMode = signal<ConfirmMode | null>(null);
   confirmInput = '';
+
+  openMemberSheet(member: HouseholdMember) {
+    this.editingMember.set(member);
+    this.memberSheetOpen.set(true);
+  }
+
+  closeMemberSheet() {
+    this.memberSheetOpen.set(false);
+    this.editingMember.set(null);
+  }
+
+  confirmRemoveMember() {
+    this.closeMemberSheet();
+    // Liten delay slik at sheetet er lukket før confirm vises
+    setTimeout(() => this.openConfirm('delete-member'), 50);
+  }
 
   openAdd() {
     this.editingChild.set(null);
@@ -682,6 +769,11 @@ export class SettingsComponent {
     const mode = this.confirmMode();
     if (mode === 'delete-child') {
       this.deleteChild();
+    } else if (mode === 'delete-member') {
+      const member = this.editingMember();
+      if (member) await this.household.removeMember(member.uid);
+      this.editingMember.set(null);
+      this.closeConfirm();
     } else if (mode === 'clear-all') {
       if (this.confirmInput.trim() !== 'SLETT') return;
       await this.data.clearAllData();
