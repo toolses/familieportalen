@@ -78,12 +78,17 @@ notificationsRouter.post('/trigger-daily-reminders', async (req, res) => {
   const userDoc = await db.doc(`users/${uid}`).get();
   const userData = userDoc.data() ?? {};
   const tokens = userData.fcmTokens ?? [];
+  const householdId = userData.householdId;
 
   if (tokens.length === 0) {
     return res.status(200).json({ message: 'Ingen registrerte enheter.' });
   }
+  if (!householdId) {
+    return res.status(200).json({ message: 'Ingen husstand funnet.' });
+  }
 
-  const reminders = userData.manualReminders ?? [];
+  const householdDoc = await db.doc(`households/${householdId}`).get();
+  const reminders = householdDoc.data()?.manualReminders ?? [];
   const todaysReminders = reminders.filter((r) => r.notify && reminderOccursOnDate(r, today));
 
   if (todaysReminders.length === 0) {
@@ -113,6 +118,8 @@ notificationsRouter.post('/trigger-daily-reminders', async (req, res) => {
   return res.json({ sent: response.successCount, failed: response.failureCount });
 });
 
+/**
+ * POST /api/notifications/test
  * Sender et test-varsel til den innloggede brukeren selv.
  * Nyttig under utvikling og testing.
  */

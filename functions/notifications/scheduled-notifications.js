@@ -193,21 +193,20 @@ export const notifyDailyReminders = onSchedule(
   async () => {
     const today = todayOslo();
     const db = getFirestore();
-    const usersSnap = await db.collection('users').get();
+
+    // Hent alle husstander med manualReminders
+    const householdsSnap = await db.collection('households').get();
 
     let totalSent = 0;
 
-    for (const userDoc of usersSnap.docs) {
-      const uid = userDoc.id;
-      const userData = userDoc.data();
-      const tokens = userData.fcmTokens ?? [];
-      if (tokens.length === 0) continue;
+    for (const householdDoc of householdsSnap.docs) {
+      const householdId = householdDoc.id;
+      const householdData = householdDoc.data();
+      const reminders = householdData.manualReminders ?? [];
 
-      const reminders = userData.manualReminders ?? [];
       const todaysReminders = reminders.filter(
         (r) => r.notify && reminderOccursOnDate(r, today)
       );
-
       if (todaysReminders.length === 0) continue;
 
       let title, body;
@@ -220,14 +219,22 @@ export const notifyDailyReminders = onSchedule(
         body = todaysReminders.map((r) => r.title).join(', ');
       }
 
-      const { sent } = await sendAndCleanTokens(uid, tokens, {
-        notification: { title, body },
-        webpush: {
-          notification: { icon: '/icon-192.png', badge: '/icon-192.png' },
-          fcmOptions: { link: '/' },
-        },
-      }, db);
-      totalSent += sent;
+      // Finn alle brukere i denne husstanden og send til deres FCM-tokens
+      const members = householdData.members ?? [];
+      for (const member of members) {
+        const userDoc = await db.doc(`users/${member.uid}`).get();
+        const tokens = userDoc.data()?.fcmTokens ?? [];
+        if (tokens.length === 0) continue;
+
+        const { sent } = await sendAndCleanTokens(member.uid, tokens, {
+          notification: { title, body },
+          webpush: {
+            notification: { icon: '/icon-192.png', badge: '/icon-192.png' },
+            fcmOptions: { link: '/' },
+          },
+        }, db);
+        totalSent += sent;
+      }
     }
 
     console.log(`[notifyDailyReminders] Sendt ${totalSent} varsel(er) for ${today}.`);

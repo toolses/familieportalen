@@ -724,8 +724,9 @@ export class SettingsComponent {
   async triggerDailyReminders() {
     this.dailyRemindersLoading.set(true);
     try {
-      await this.notifications.triggerDailyReminders();
-      this.testPushResult.set({ ok: true, message: 'Daglige påminnelsesvarsler sendt!' });
+      const res = await this.notifications.triggerDailyReminders();
+      const msg = res.message ?? `Sendt til ${res.sent} enhet${res.sent !== 1 ? 'er' : ''}.`;
+      this.testPushResult.set({ ok: true, message: msg });
     } catch {
       this.testPushResult.set({ ok: false, message: 'Feil: Kunne ikke sende påminnelsesvarsler.' });
     } finally {
