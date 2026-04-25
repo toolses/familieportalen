@@ -7,6 +7,10 @@ import { environment } from '../../environments/environment';
 // med persistent lokal cache (IndexedDB) for offline-støtte og raskere start.
 export const firebaseApp = initializeApp(environment.firebase);
 export const firebaseAuth = getAuth(firebaseApp);
-export const firebaseDb = initializeFirestore(firebaseApp, {
-  localCache: persistentLocalCache(),
-}, environment.firestoreDatabaseId);
+
+const dbId = environment.firestoreDatabaseId;
+export const firebaseDb = initializeFirestore(
+  firebaseApp,
+  { localCache: persistentLocalCache() },
+  dbId !== '(default)' ? dbId : undefined,
+);
