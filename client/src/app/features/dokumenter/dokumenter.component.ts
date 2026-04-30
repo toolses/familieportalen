@@ -105,7 +105,7 @@ type AssignedToOption =
                   <span class="text-[11px] text-gray-400">· {{ doc.uploadedByName }}</span>
                 </div>
                 <!-- Assigned tags -->
-                @if (doc.assignedTo?.length) {
+                @if (doc.assignedTo.length) {
                   <div class="flex items-center gap-1 mt-1.5 flex-wrap">
                     @for (tag of doc.assignedTo; track $index) {
                       <span class="text-[10px] font-semibold text-white px-1.5 py-0.5 rounded-md"

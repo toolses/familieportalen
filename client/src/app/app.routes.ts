@@ -1,23 +1,72 @@
 import { Routes } from '@angular/router';
-import { DashboardComponent } from './features/dashboard/dashboard.component';
-import { CalendarComponent } from './features/calendar/calendar.component';
-import { SkoleComponent } from './features/skole/skole.component';
-import { SettingsComponent } from './features/settings/settings.component';
-import { LoginComponent } from './features/login/login.component';
-import { GoogleCallbackComponent } from './features/google/google-callback.component';
-import { ListerComponent } from './features/lister/lister.component';
-import { ListDetailComponent } from './features/lister/list-detail.component';
-import { DokumenterComponent } from './features/dokumenter/dokumenter.component';
 import { authGuard } from './shared/guards/auth.guard';
 
 export const routes: Routes = [
-  { path: 'login', component: LoginComponent },
-  { path: 'google-callback', component: GoogleCallbackComponent, canActivate: [authGuard] },
-  { path: '', component: DashboardComponent, canActivate: [authGuard] },
-  { path: 'kalender', component: CalendarComponent, canActivate: [authGuard] },
-  { path: 'skole', component: SkoleComponent, canActivate: [authGuard] },
-  { path: 'lister', component: ListerComponent, canActivate: [authGuard] },
-  { path: 'lister/:id', component: ListDetailComponent, canActivate: [authGuard] },
-  { path: 'dokumenter', component: DokumenterComponent, canActivate: [authGuard] },
-  { path: 'innstillinger', component: SettingsComponent, canActivate: [authGuard] },
+  {
+    path: 'login',
+    loadComponent: () =>
+      import('./features/login/login.component').then((m) => m.LoginComponent),
+  },
+  {
+    path: 'google-callback',
+    loadComponent: () =>
+      import('./features/google/google-callback.component').then(
+        (m) => m.GoogleCallbackComponent,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: '',
+    loadComponent: () =>
+      import('./features/dashboard/dashboard.component').then(
+        (m) => m.DashboardComponent,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'kalender',
+    loadComponent: () =>
+      import('./features/calendar/calendar.component').then(
+        (m) => m.CalendarComponent,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'skole',
+    loadComponent: () =>
+      import('./features/skole/skole.component').then((m) => m.SkoleComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'lister',
+    loadComponent: () =>
+      import('./features/lister/lister.component').then(
+        (m) => m.ListerComponent,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'lister/:id',
+    loadComponent: () =>
+      import('./features/lister/list-detail.component').then(
+        (m) => m.ListDetailComponent,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'dokumenter',
+    loadComponent: () =>
+      import('./features/dokumenter/dokumenter.component').then(
+        (m) => m.DokumenterComponent,
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'innstillinger',
+    loadComponent: () =>
+      import('./features/settings/settings.component').then(
+        (m) => m.SettingsComponent,
+      ),
+    canActivate: [authGuard],
+  },
 ];
