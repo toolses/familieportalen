@@ -133,28 +133,28 @@ type AssignedToOption =
 
     <!-- PDF / image viewer overlay -->
     @if (viewingDoc()) {
-      <div class="fixed inset-0 z-[60] bg-black flex flex-col">
-        <div class="flex items-center justify-between px-4 py-3 bg-black/80">
-          <p class="text-white font-medium text-sm truncate flex-1 mr-4">{{ viewingDoc()!.title }}</p>
+      <div class="fixed inset-0 z-[60] bg-black flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between gap-3 px-4 py-3 bg-black/80 pt-[max(0.75rem,env(safe-area-inset-top))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
+          <p class="text-white font-medium text-sm truncate flex-1 min-w-0">{{ viewingDoc()!.title }}</p>
           <button (click)="viewingDoc.set(null)"
-                  class="text-white/80 hover:text-white p-2 -mr-2">
+                  class="text-white/80 hover:text-white p-2 flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
           </button>
         </div>
 
         @if (viewingDoc()!.mimeType === 'application/pdf') {
           <iframe [src]="safeUrl(viewingDoc()!.fileUrl)"
-                  class="flex-1 w-full border-0 bg-gray-100"
+                  class="flex-1 w-full max-w-full border-0 bg-gray-100"
                   title="{{ viewingDoc()!.title }}">
           </iframe>
-          <div class="bg-black/80 px-4 py-3 flex justify-center">
+          <div class="bg-black/80 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex justify-center">
             <a [href]="viewingDoc()!.fileUrl" target="_blank" rel="noopener noreferrer"
                class="text-sm text-blue-400 underline">
               Åpne i ny fane
             </a>
           </div>
         } @else {
-          <div class="flex-1 flex items-center justify-center p-4">
+          <div class="flex-1 flex items-center justify-center p-4 overflow-hidden">
             <img [src]="viewingDoc()!.fileUrl" [alt]="viewingDoc()!.title"
                  class="max-w-full max-h-full object-contain" />
           </div>
