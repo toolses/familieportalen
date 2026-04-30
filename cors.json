@@ -1,0 +1,12 @@
+[
+  {
+    "origin": [
+      "http://localhost:4202",
+      "https://familieportalen-11d5e.web.app",
+      "https://familieportalen-11d5e.firebaseapp.com"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Range"],
+    "maxAgeSeconds": 3600
+  }
+]
