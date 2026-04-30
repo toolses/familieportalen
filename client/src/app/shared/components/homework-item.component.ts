@@ -4,6 +4,7 @@ import { SchoolEvent } from '../../features/school-plan/models/school-plan.model
 @Component({
   selector: 'app-homework-item',
   standalone: true,
+  host: { class: 'block' },
   template: `
     <button
       class="w-full flex gap-3 items-start rounded-xl p-3 transition-colors text-left"

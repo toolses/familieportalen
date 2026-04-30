@@ -268,13 +268,25 @@ type SkoleView = 'WEEK' | 'SCAN' | 'REVIEW';
             <button (click)="onSaveClick()"
                     [disabled]="isSaving()"
                     class="w-full bg-blue-600 text-white py-3 rounded-xl font-medium transition-all disabled:opacity-60 active:scale-[0.98]">
-              @if (isSaving()) {
+              @if (isSaving() && saveMode() === 'full') {
                 <span class="inline-flex items-center gap-2">
                   <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                   Lagrer...
                 </span>
               } @else {
                 Lagre ukeplan
+              }
+            </button>
+            <button (click)="onSaveImagesOnlyClick()"
+                    [disabled]="isSaving()"
+                    class="w-full border border-gray-300 text-gray-600 py-2 rounded-xl active:scale-[0.98] disabled:opacity-60">
+              @if (isSaving() && saveMode() === 'images-only') {
+                <span class="inline-flex items-center gap-2 justify-center">
+                  <span class="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></span>
+                  Lagrer...
+                </span>
+              } @else {
+                Lagre kun bilder
               }
             </button>
             <button (click)="view.set('SCAN')"
@@ -361,6 +373,7 @@ export class SkoleComponent implements OnInit {
   isSaving = signal(false);
   saveSuccess = signal(false);
   showChildPicker = signal(false);
+  saveMode = signal<'full' | 'images-only'>('full');
 
   viewedMonday = signal('');
 
@@ -441,22 +454,18 @@ export class SkoleComponent implements OnInit {
   );
 
   constructor() {
-    // Reset to active plan's week when switching children
     effect(() => {
       this.data.activeChildId(); // track
-      untracked(() => this.resetToActivePlanWeek());
+      untracked(() => this.resetToCurrentWeek());
     });
   }
 
   ngOnInit() {
-    this.resetToActivePlanWeek();
+    this.resetToCurrentWeek();
   }
 
-  private resetToActivePlanWeek() {
-    const plan = this.data.activePlan();
-    const monday = plan
-      ? getDatesOfWeek(plan.metadata.uke, plan.metadata.aar)[0]
-      : getMondayOfWeek(this.today);
+  private resetToCurrentWeek() {
+    const monday = getMondayOfWeek(this.today);
     this.viewedMonday.set(monday);
     const dates = getDatesOfWeek(getISOWeekYear(monday).uke, getISOWeekYear(monday).aar);
     const todayMatch = dates.find((d) => d === this.today);
@@ -594,13 +603,22 @@ export class SkoleComponent implements OnInit {
   }
 
   onSaveClick() {
+    this.saveMode.set('full');
+    this.triggerSave();
+  }
+
+  onSaveImagesOnlyClick() {
+    this.saveMode.set('images-only');
+    this.triggerSave();
+  }
+
+  private triggerSave() {
     const children = this.data.children();
     if (children.length > 1) {
       this.showChildPicker.set(true);
     } else if (children.length === 1) {
       this.saveForChild(children[0].id);
     } else {
-      // Legacy: no children configured
       this.savePlan();
     }
   }
@@ -614,7 +632,8 @@ export class SkoleComponent implements OnInit {
 
     const images = await this.downscaleImages();
     this.data.setActiveChild(childId);
-    this.data.savePlanForChild(childId, meta, this.reviewEvents(), undefined, images);
+    const events = this.saveMode() === 'images-only' ? [] : this.reviewEvents();
+    this.data.savePlanForChild(childId, meta, events, undefined, images);
     this.isSaving.set(false);
     this.saveSuccess.set(true);
     this.initSelectedDate();
@@ -631,7 +650,8 @@ export class SkoleComponent implements OnInit {
     this.isSaving.set(true);
     this.saveSuccess.set(false);
     const images = await this.downscaleImages();
-    this.data.savePlan(meta, this.reviewEvents(), undefined, images);
+    const events = this.saveMode() === 'images-only' ? [] : this.reviewEvents();
+    this.data.savePlan(meta, events, undefined, images);
     this.isSaving.set(false);
     this.saveSuccess.set(true);
     this.initSelectedDate();

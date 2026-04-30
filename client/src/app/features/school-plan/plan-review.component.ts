@@ -2,7 +2,7 @@ import { Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PlanMetadata, SchoolEvent } from './models/school-plan.models';
 
-type Tab = 'informasjon' | 'beskjeder' | 'lekser' | 'fag';
+type Tab = 'informasjon' | 'beskjeder' | 'lekser';
 
 @Component({
   selector: 'app-plan-review',
@@ -54,13 +54,13 @@ type Tab = 'informasjon' | 'beskjeder' | 'lekser' | 'fag';
                   <option value="school_class">Fag</option>
                 </select>
                 <div class="flex items-center gap-2 shrink-0">
-                  <label class="relative shrink-0 inline-block text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-0.5 bg-white focus-within:ring-2 focus-within:ring-indigo-400 cursor-pointer">
+                  <label class="relative shrink-0 inline-block overflow-hidden text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-0.5 bg-white focus-within:ring-2 focus-within:ring-indigo-400 cursor-pointer">
                     @if (event.date) { {{ formatDate(event.date) }} } @else { <span class="text-gray-400">Dato</span> }
                     <input type="date" [(ngModel)]="event.date"
                            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                   </label>
-                  <button (click)="deleteEvent(event)"
-                          class="text-gray-300 hover:text-red-400 transition-colors active:scale-90"
+                  <button (click)="deleteEvent(event); $event.stopPropagation()"
+                          class="relative z-10 text-gray-300 hover:text-red-400 transition-colors active:scale-90"
                           title="Slett hendelse">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                   </button>
@@ -69,8 +69,8 @@ type Tab = 'informasjon' | 'beskjeder' | 'lekser' | 'fag';
               <div class="mt-2 space-y-1">
                 <input [(ngModel)]="event.title"
                        class="w-full border rounded-lg px-2 py-1 text-sm font-medium" />
-                <textarea [(ngModel)]="event.description" rows="2"
-                          class="w-full border rounded-lg px-2 py-1 text-sm text-gray-600 resize-none"></textarea>
+                <textarea [(ngModel)]="event.description" rows="3"
+                          class="w-full border rounded-lg px-2 py-1 text-sm text-gray-600 resize-y"></textarea>
               </div>
             </div>
           }
@@ -150,7 +150,6 @@ export class PlanReviewComponent {
     { key: 'informasjon', label: 'Info' },
     { key: 'beskjeder', label: 'Beskjeder' },
     { key: 'lekser', label: 'Lekser' },
-    { key: 'fag', label: 'Fag' },
   ];
 
   filteredEvents = computed(() => {
@@ -158,8 +157,7 @@ export class PlanReviewComponent {
     return this.events().filter((e) => {
       if (tab === 'informasjon') return e.category === 'information';
       if (tab === 'beskjeder') return e.category === 'reminder';
-      if (tab === 'lekser') return e.category === 'homework';
-      return e.category === 'school_class';
+      return e.category === 'homework';
     });
   });
 
@@ -167,8 +165,7 @@ export class PlanReviewComponent {
     return this.events().filter((e) => {
       if (tab === 'informasjon') return e.category === 'information';
       if (tab === 'beskjeder') return e.category === 'reminder';
-      if (tab === 'lekser') return e.category === 'homework';
-      return e.category === 'school_class';
+      return e.category === 'homework';
     }).length;
   }
 
