@@ -7,6 +7,7 @@ import { LoginComponent } from './features/login/login.component';
 import { GoogleCallbackComponent } from './features/google/google-callback.component';
 import { ListerComponent } from './features/lister/lister.component';
 import { ListDetailComponent } from './features/lister/list-detail.component';
+import { DokumenterComponent } from './features/dokumenter/dokumenter.component';
 import { authGuard } from './shared/guards/auth.guard';
 
 export const routes: Routes = [
@@ -17,5 +18,6 @@ export const routes: Routes = [
   { path: 'skole', component: SkoleComponent, canActivate: [authGuard] },
   { path: 'lister', component: ListerComponent, canActivate: [authGuard] },
   { path: 'lister/:id', component: ListDetailComponent, canActivate: [authGuard] },
+  { path: 'dokumenter', component: DokumenterComponent, canActivate: [authGuard] },
   { path: 'innstillinger', component: SettingsComponent, canActivate: [authGuard] },
 ];

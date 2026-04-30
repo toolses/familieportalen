@@ -4,7 +4,6 @@ import {
   signInWithPopup,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
-  OAuthProvider,
   type User,
 } from 'firebase/auth';
 import { firebaseAuth } from '../../core/firebase';

@@ -61,18 +61,26 @@ export class ListService {
   }
 
   private subscribeToLists(): void {
-    this.unsub = onSnapshot(this.listsRef, async (snapshot) => {
-      const docs = snapshot.docs.map(
-        (d) => ({ id: d.id, ...(d.data() as Omit<AppList, 'id'>) } as AppList)
-      );
-      this.lists.set(docs);
+    this.unsub = onSnapshot(
+      this.listsRef,
+      async (snapshot) => {
+        const docs = snapshot.docs.map(
+          (d) => ({ id: d.id, ...(d.data() as Omit<AppList, 'id'>) } as AppList)
+        );
+        this.lists.set(docs);
 
-      // Ensure singletons exist — create only once per snapshot if missing
-      const hasBytteHus = docs.some((l) => l.type === 'bytte-hus');
-      const hasHandleliste = docs.some((l) => l.type === 'handleliste');
-      if (!hasBytteHus) await this.createSingleton('bytte-hus', 'Bytte hus');
-      if (!hasHandleliste) await this.createSingleton('handleliste', 'Ting vi mangler');
-    });
+        // Ensure singletons exist — create only once per snapshot if missing
+        const hasBytteHus = docs.some((l) => l.type === 'bytte-hus');
+        const hasHandleliste = docs.some((l) => l.type === 'handleliste');
+        try {
+          if (!hasBytteHus) await this.createSingleton('bytte-hus', 'Bytte hus');
+          if (!hasHandleliste) await this.createSingleton('handleliste', 'Ting vi mangler');
+        } catch (err) {
+          console.error('[ListService] createSingleton failed:', err);
+        }
+      },
+      (err) => console.error('[ListService]', err.message),
+    );
   }
 
   private async createSingleton(

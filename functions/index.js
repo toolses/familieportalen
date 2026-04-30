@@ -40,6 +40,7 @@ app.use('/api/school-plan', verifyFirebaseToken);
 app.use('/api/auth/google', verifyFirebaseToken);
 app.use('/api/calendar', verifyFirebaseToken);
 app.use('/api/notifications', verifyFirebaseToken);
+app.use('/api/dokumenter', verifyFirebaseToken);
 
 // Dynamically import school plan service
 const { schoolPlanRouter } = await import('./school-plan/school-plan.routes.js');
@@ -53,6 +54,9 @@ app.use('/api/calendar', googleCalendarRouter);
 
 const { notificationsRouter } = await import('./notifications/notifications.routes.js');
 app.use('/api/notifications', notificationsRouter);
+
+const { dokumenterRouter } = await import('./dokumenter/dokumenter.routes.js');
+app.use('/api/dokumenter', dokumenterRouter);
 
 // Error handlers
 app.use((err, req, res, next) => {

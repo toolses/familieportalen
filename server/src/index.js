@@ -22,6 +22,7 @@ app.use('/api/auth/google', googleAuthRouter);
 app.use('/api/calendar', googleCalendarRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.post('/api/dokumenter/notify-upload', (_req, res) => res.json({ sent: 0, message: 'Dev: ingen push i utviklingsmodus.' }));
 
 // Handle JSON parse errors from express.json()
 app.use((err, req, res, next) => {

@@ -48,7 +48,7 @@ export class HouseholdService {
       if (!this.auth.loading()) {
         clearInterval(check);
         if (this.auth.isLoggedIn()) {
-          this.init();
+          this.init().catch((err) => console.error('[HouseholdService] init() failed:', err));
         } else {
           this.ready.set(true);
         }
@@ -203,14 +203,21 @@ export class HouseholdService {
   private subscribeToHousehold(hid: string): void {
     this.unsub?.();
     this.ready.set(false);
-    this.unsub = onSnapshot(doc(db, 'households', hid), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as { inviteCode?: string; members?: HouseholdMember[] };
-        this.inviteCode.set(data.inviteCode ?? null);
-        this.members.set(data.members ?? []);
-      }
-      this.ready.set(true);
-    });
+    this.unsub = onSnapshot(
+      doc(db, 'households', hid),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() as { inviteCode?: string; members?: HouseholdMember[] };
+          this.inviteCode.set(data.inviteCode ?? null);
+          this.members.set(data.members ?? []);
+        }
+        this.ready.set(true);
+      },
+      (err) => {
+        console.error('[HouseholdService]', err.message);
+        this.ready.set(true);
+      },
+    );
   }
 
   /** Genererer 6-tegns kode uten tvetydige tegn (0/O, 1/I/l) */

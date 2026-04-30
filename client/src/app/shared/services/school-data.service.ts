@@ -358,15 +358,25 @@ export class SchoolDataService {
 
     this.unsubFirestore?.();
     let firstSnapshot = true;
-    this.unsubFirestore = onSnapshot(doc(db, 'households', hid), (snap) => {
-      if (firstSnapshot) {
-        firstSnapshot = false;
-        this.dataLoaded.set(true);
-      }
-      if (!snap.exists()) return;
-      const state = snap.data() as FamilyState & { activeWeek?: { uke: number; aar: number } | null };
-      this.applyState(state);
-    });
+    this.unsubFirestore = onSnapshot(
+      doc(db, 'households', hid),
+      (snap) => {
+        if (firstSnapshot) {
+          firstSnapshot = false;
+          this.dataLoaded.set(true);
+        }
+        if (!snap.exists()) return;
+        const state = snap.data() as FamilyState & { activeWeek?: { uke: number; aar: number } | null };
+        this.applyState(state);
+      },
+      (err) => {
+        console.error('[SchoolDataService]', err.message);
+        if (firstSnapshot) {
+          firstSnapshot = false;
+          this.dataLoaded.set(true);
+        }
+      },
+    );
   }
 
   private applyState(state: FamilyState & { activeWeek?: { uke: number; aar: number } | null }): void {
@@ -394,16 +404,23 @@ export class SchoolDataService {
 
   private subscribeToSharedConfig(): void {
     this.unsubSharedConfig?.();
-    this.unsubSharedConfig = onSnapshot(doc(db, 'config', 'shared'), (snap) => {
-      if (!snap.exists()) {
+    this.unsubSharedConfig = onSnapshot(
+      doc(db, 'config', 'shared'),
+      (snap) => {
+        if (!snap.exists()) {
+          this.sharedConfigLoaded.set(true);
+          return;
+        }
+        const data = snap.data() as { googleCalendarId?: string | null };
+        if (data.googleCalendarId !== undefined) {
+          this.googleCalendarId.set(data.googleCalendarId);
+        }
         this.sharedConfigLoaded.set(true);
-        return;
-      }
-      const data = snap.data() as { googleCalendarId?: string | null };
-      if (data.googleCalendarId !== undefined) {
-        this.googleCalendarId.set(data.googleCalendarId);
-      }
-      this.sharedConfigLoaded.set(true);
-    });
+      },
+      (err) => {
+        console.error('[SchoolDataService] config/shared:', err.message);
+        this.sharedConfigLoaded.set(true);
+      },
+    );
   }
 }

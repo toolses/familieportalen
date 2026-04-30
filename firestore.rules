@@ -38,6 +38,18 @@ service cloud.firestore {
         allow read, write: if request.auth != null
           && request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberUids;
       }
+
+      // Dokumentarkiv: kun husstandsmedlemmer kan lese; slette kun opplaster eller admin
+      match /documents/{docId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberUids;
+        allow create: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberUids;
+        allow delete: if request.auth != null
+          && (request.auth.uid == resource.data.uploadedBy
+            || request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.adminUids);
+        allow update: if false;
+      }
     }
 
     // Invitasjonskoder: alle innloggede kan lese; kun husstandsmedlemmer kan opprette

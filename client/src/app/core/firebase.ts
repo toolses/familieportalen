@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import { environment } from '../../environments/environment';
 
 // Initialiseres én gang her, slik at alle tjenester bruker samme instans
@@ -14,3 +15,5 @@ export const firebaseDb = initializeFirestore(
   { localCache: persistentLocalCache() },
   dbId !== '(default)' ? dbId : undefined,
 );
+
+export const firebaseStorage = getStorage(firebaseApp);
