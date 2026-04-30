@@ -433,31 +433,47 @@ export class DocumentUploadComponent {
   }
 
   private async pagesToPdf(dataUrls: string[]): Promise<Blob> {
-    const first = await this.loadImage(dataUrls[0]);
-    const landscape = first.width > first.height;
-    const pdf = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait', unit: 'mm' });
+    const canvases = await Promise.all(dataUrls.map((url) => this.orientedCanvas(url)));
 
-    for (let i = 0; i < dataUrls.length; i++) {
-      if (i > 0) pdf.addPage();
-      const img = await this.loadImage(dataUrls[i]);
+    const firstLandscape = canvases[0].width > canvases[0].height;
+    const pdf = new jsPDF({ orientation: firstLandscape ? 'landscape' : 'portrait', unit: 'mm' });
+
+    for (let i = 0; i < canvases.length; i++) {
+      const canvas = canvases[i];
+      if (i > 0) {
+        pdf.addPage('a4', canvas.width > canvas.height ? 'landscape' : 'portrait');
+      }
+      const pageDataUrl = canvas.toDataURL('image/jpeg', 0.88);
       const pw = pdf.internal.pageSize.getWidth();
       const ph = pdf.internal.pageSize.getHeight();
-      const ratio = Math.min(pw / img.width, ph / img.height);
-      const w = img.width * ratio;
-      const h = img.height * ratio;
-      pdf.addImage(dataUrls[i], 'JPEG', (pw - w) / 2, (ph - h) / 2, w, h, undefined, 'FAST');
+      const ratio = Math.min(pw / canvas.width, ph / canvas.height);
+      pdf.addImage(pageDataUrl, 'JPEG', (pw - canvas.width * ratio) / 2, (ph - canvas.height * ratio) / 2, canvas.width * ratio, canvas.height * ratio, undefined, 'FAST');
     }
 
     return pdf.output('blob');
   }
 
-  private loadImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = src;
-    });
+  private async orientedCanvas(dataUrl: string, maxDim = 2048): Promise<HTMLCanvasElement> {
+    const blob = await fetch(dataUrl).then((r) => r.blob());
+    let bitmap: ImageBitmap;
+    try {
+      bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    } catch {
+      bitmap = await createImageBitmap(blob);
+    }
+    let w = bitmap.width;
+    let h = bitmap.height;
+    if (Math.max(w, h) > maxDim) {
+      const scale = maxDim / Math.max(w, h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    return canvas;
   }
 
   private fileToDataUrl(file: File): Promise<string> {
