@@ -631,7 +631,6 @@ export class SkoleComponent implements OnInit {
     this.saveSuccess.set(false);
 
     const images = await this.downscaleImages();
-    this.data.setActiveChild(childId);
     const events = this.saveMode() === 'images-only' ? [] : this.reviewEvents();
     this.data.savePlanForChild(childId, meta, events, undefined, images);
     this.isSaving.set(false);

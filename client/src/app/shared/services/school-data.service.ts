@@ -211,13 +211,15 @@ export class SchoolDataService {
   // ── Plan persistence ────────────────────────────────────────
 
   savePlanForChild(childId: string, metadata: PlanMetadata, events: SchoolEvent[], house?: 'A' | 'B', images?: { front: string; back?: string }): void {
+    const eventsWithIds = events.map((e) => ({ ...e, id: e.id ?? crypto.randomUUID() }));
     const entry: SavedPlan = {
       metadata,
-      events,
+      events: eventsWithIds,
       savedAt: new Date().toISOString(),
       house,
       images,
     };
+    this.activeChildId.set(childId);
     this.plansMap.update((m) => {
       const plans = [...(m[childId] ?? [])];
       const idx = plans.findIndex(
@@ -242,7 +244,7 @@ export class SchoolDataService {
     const childId = this.activeChildId();
     const plan = this.activePlan();
     if (!childId || !plan) return;
-    const newEvents = plan.events.map((e) => (e === target ? updated : e));
+    const newEvents = plan.events.map((e) => (this.sameEvent(e, target) ? updated : e));
     this.savePlanForChild(childId, plan.metadata, newEvents, plan.house, plan.images);
   }
 
@@ -250,7 +252,7 @@ export class SchoolDataService {
     const childId = this.activeChildId();
     const plan = this.activePlan();
     if (!childId || !plan) return;
-    const newEvents = plan.events.filter((e) => e !== target);
+    const newEvents = plan.events.filter((e) => !this.sameEvent(e, target));
     this.savePlanForChild(childId, plan.metadata, newEvents, plan.house, plan.images);
   }
 
@@ -258,7 +260,7 @@ export class SchoolDataService {
     const plans = this.plansMap()[childId];
     if (!plans?.length) return;
     const plan = plans[plans.length - 1];
-    const newEvents = plan.events.map((e) => (e === target ? updated : e));
+    const newEvents = plan.events.map((e) => (this.sameEvent(e, target) ? updated : e));
     this.savePlanForChild(childId, plan.metadata, newEvents, plan.house, plan.images);
   }
 
@@ -266,8 +268,13 @@ export class SchoolDataService {
     const plans = this.plansMap()[childId];
     if (!plans?.length) return;
     const plan = plans[plans.length - 1];
-    const newEvents = plan.events.filter((e) => e !== target);
+    const newEvents = plan.events.filter((e) => !this.sameEvent(e, target));
     this.savePlanForChild(childId, plan.metadata, newEvents, plan.house, plan.images);
+  }
+
+  private sameEvent(a: SchoolEvent, b: SchoolEvent): boolean {
+    if (a.id && b.id) return a.id === b.id;
+    return a.date === b.date && a.title === b.title && a.category === b.category && a.description === b.description;
   }
 
   getPlansForChild(childId: string): SavedPlan[] {

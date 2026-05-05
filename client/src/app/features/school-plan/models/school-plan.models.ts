@@ -5,6 +5,7 @@ export interface PlanMetadata {
 }
 
 export interface SchoolEvent {
+  id?: string;
   date: string;
   title: string;
   description: string;
