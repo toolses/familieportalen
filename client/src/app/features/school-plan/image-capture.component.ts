@@ -7,6 +7,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { preprocessImageForAI } from '../../shared/utils/image-utils';
 
 type CaptureStep = 'idle' | 'front' | 'back' | 'processing';
 
@@ -58,10 +59,22 @@ type CaptureStep = 'idle' | 'front' | 'back' | 'processing';
             <div class="absolute top-4 left-0 right-0 text-center z-20">
               <div class="inline-block bg-black/50 backdrop-blur-sm rounded-full px-4 py-1">
                 @if (step() === 'front') {
-                  <p class="text-white text-sm font-medium">📄 Legg dokumentet flatt og ta bilde</p>
+                  <p class="text-white text-sm font-medium">📄 Hold telefonen rett over arket og ta bilde</p>
                 } @else {
-                  <p class="text-white text-sm font-medium">📄 Ta bilde av timeplanen</p>
+                  <p class="text-white text-sm font-medium">📄 Hold telefonen rett over arket og ta bilde</p>
                 }
+              </div>
+            </div>
+
+            <!-- Document alignment overlay -->
+            <div class="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+              <div class="w-[80%] h-[85%] border-2 border-white/60 rounded-lg"
+                   style="box-shadow: 0 0 0 9999px rgba(0,0,0,0.25);">
+                <!-- Corner markers -->
+                <div class="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-4 border-l-4 border-white rounded-tl-md"></div>
+                <div class="absolute -top-0.5 -right-0.5 w-6 h-6 border-t-4 border-r-4 border-white rounded-tr-md"></div>
+                <div class="absolute -bottom-0.5 -left-0.5 w-6 h-6 border-b-4 border-l-4 border-white rounded-bl-md"></div>
+                <div class="absolute -bottom-0.5 -right-0.5 w-6 h-6 border-b-4 border-r-4 border-white rounded-br-md"></div>
               </div>
             </div>
 
@@ -351,13 +364,20 @@ export class ImageCaptureComponent implements OnDestroy {
     this.submitImages();
   }
 
-  submitImages() {
+  async submitImages() {
     const front = this.frontImage();
     if (!front) return;
     this.step.set('processing');
+
+    // Preprocess images for AI (grayscale + contrast boost) without touching the previews
+    const [frontAI, backAI] = await Promise.all([
+      preprocessImageForAI(front),
+      this.backImage() ? preprocessImageForAI(this.backImage()!) : Promise.resolve(undefined),
+    ]);
+
     this.imagesReady.emit({
-      front,
-      ...(this.backImage() ? { back: this.backImage()! } : {}),
+      front: frontAI,
+      ...(backAI ? { back: backAI } : {}),
       frontPreview: this.frontPreview()!,
       ...(this.backPreview() ? { backPreview: this.backPreview()! } : {}),
     });

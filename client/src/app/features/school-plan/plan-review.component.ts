@@ -157,7 +157,7 @@ export class PlanReviewComponent {
     return this.events().filter((e) => {
       if (tab === 'informasjon') return e.category === 'information';
       if (tab === 'beskjeder') return e.category === 'reminder';
-      return e.category === 'homework';
+      return e.category === 'homework' || e.category === 'weekly_homework';
     });
   });
 
@@ -165,7 +165,7 @@ export class PlanReviewComponent {
     return this.events().filter((e) => {
       if (tab === 'informasjon') return e.category === 'information';
       if (tab === 'beskjeder') return e.category === 'reminder';
-      return e.category === 'homework';
+      return e.category === 'homework' || e.category === 'weekly_homework';
     }).length;
   }
 
@@ -183,6 +183,7 @@ export class PlanReviewComponent {
       information: 'bg-emerald-100 text-emerald-800',
       school_class: 'bg-blue-100 text-blue-800',
       homework: 'bg-orange-100 text-orange-800',
+      weekly_homework: 'bg-orange-50 text-orange-700',
       reminder: 'bg-amber-100 text-amber-800',
     };
     return map[cat] ?? 'bg-gray-100';
@@ -193,6 +194,7 @@ export class PlanReviewComponent {
       information: 'border-emerald-200',
       school_class: 'border-blue-200',
       homework: 'border-orange-200',
+      weekly_homework: 'border-orange-100',
       reminder: 'border-amber-200',
     };
     return map[cat] ?? '';

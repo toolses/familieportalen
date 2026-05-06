@@ -436,7 +436,7 @@ export class SkoleComponent implements OnInit {
     const date = this.selectedDate();
     if (!plan || !date) return [];
     return plan.events.filter((e) =>
-      e.category === 'homework' && (e.date === date || this.isUkelekse(e))
+      e.category === 'weekly_homework' || (e.category === 'homework' && e.date === date)
     );
   });
 
@@ -514,9 +514,6 @@ export class SkoleComponent implements OnInit {
     return diffWeeks % 2 === 0;
   }
 
-  isUkelekse(event: SchoolEvent): boolean {
-    return event.title.toLowerCase().startsWith('ukelekse');
-  }
 
   prevDay(): void {
     const days = this.weekDays();
@@ -663,8 +660,10 @@ export class SkoleComponent implements OnInit {
 
   private async downscaleImages(): Promise<{ front: string; back?: string }> {
     const raw = this.reviewImages();
-    const front = await downscaleBase64Image(raw.front);
-    const back = raw.back ? await downscaleBase64Image(raw.back) : undefined;
+    // 800 px keeps images readable on mobile while staying well within Firestore's 1 MB
+    // document limit even when two children each have an active plan with images.
+    const front = await downscaleBase64Image(raw.front, 800);
+    const back = raw.back ? await downscaleBase64Image(raw.back, 800) : undefined;
     return { front, ...(back ? { back } : {}) };
   }
 

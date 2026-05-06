@@ -496,7 +496,7 @@ export class DashboardComponent {
       const plan = plans.length > 0 ? plans[plans.length - 1] : null;
       if (!plan) continue;
       for (const e of plan.events) {
-        if (e.date === date && !this.isUkelekse(e)) {
+        if (e.date === date && e.category !== 'weekly_homework') {
           result.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, planRef: e });
         }
       }
@@ -584,7 +584,7 @@ export class DashboardComponent {
         (p) => p.metadata.uke === currentUke && p.metadata.aar === currentAar
       ) ?? null;
       if (!plan) continue;
-      const ukelekser = plan.events.filter((e) => e.category === 'homework' && this.isUkelekse(e));
+      const ukelekser = plan.events.filter((e) => e.category === 'weekly_homework');
       if (ukelekser.length > 0) result.push({ child, events: ukelekser });
     }
     return result;
@@ -596,10 +596,6 @@ export class DashboardComponent {
 
   isUkelekseOpen(childId: string): boolean {
     return !!this.ukelekseOpenMap()[childId];
-  }
-
-  isUkelekse(event: SchoolEvent): boolean {
-    return event.title.toLowerCase().startsWith('ukelekse');
   }
 
   /** True if today or tomorrow is a handover day. Also returns which day for the label. */

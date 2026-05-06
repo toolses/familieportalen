@@ -640,7 +640,7 @@ export class CalendarComponent {
       const plan: SavedPlan | null = plans.length > 0 ? plans[plans.length - 1] : null;
       if (!plan) continue;
       for (const e of plan.events) {
-        if (e.category !== 'school_class' && e.category !== 'information' && !this.isUkelekse(e)) {
+        if (e.category !== 'school_class' && e.category !== 'information' && e.category !== 'weekly_homework') {
           allTagged.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, _original: e });
         }
       }
@@ -698,7 +698,7 @@ export class CalendarComponent {
       const plan: SavedPlan | null = plans.length > 0 ? plans[plans.length - 1] : null;
       if (!plan) continue;
       for (const e of plan.events) {
-        if (e.category !== 'school_class' && e.category !== 'information' && !this.isUkelekse(e)) {
+        if (e.category !== 'school_class' && e.category !== 'information' && e.category !== 'weekly_homework') {
           allTagged.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, _original: e });
         }
       }
@@ -742,7 +742,7 @@ export class CalendarComponent {
       const plan: SavedPlan | null = plans.length > 0 ? plans[plans.length - 1] : null;
       if (!plan) continue;
       for (const e of plan.events) {
-        if (e.category !== 'school_class' && e.category !== 'information' && !this.isUkelekse(e)) {
+        if (e.category !== 'school_class' && e.category !== 'information' && e.category !== 'weekly_homework') {
           allTagged.push({ ...e, childName: child.name, childColor: child.color, childId: child.id, _original: e });
         }
       }
@@ -753,7 +753,7 @@ export class CalendarComponent {
 
       let schoolEventsForDay = allTagged.filter((e) => e.date === date);
       if (filterMode === 'homework') {
-        schoolEventsForDay = schoolEventsForDay.filter((e) => e.category === 'homework');
+        schoolEventsForDay = schoolEventsForDay.filter((e) => e.category === 'homework' || e.category === 'weekly_homework');
       } else if (filterMode === 'reminders') {
         schoolEventsForDay = schoolEventsForDay.filter((e) => e.category === 'reminder');
       } else if (filterMode === 'events') {
@@ -957,11 +957,6 @@ export class CalendarComponent {
     const intervalDays = event.recurrence.type === 'weekly' ? 7 : 14;
     const diffDays = Math.round((checkMs - startMs) / (24 * 60 * 60 * 1000));
     return diffDays % intervalDays === 0;
-  }
-
-  isUkelekse(event: SchoolEvent): boolean {
-    const title = event.title.toLowerCase();
-    return title.startsWith('ukelekse') || title.includes('hele uken');
   }
 
   private refreshGoogleForWeek(): void {

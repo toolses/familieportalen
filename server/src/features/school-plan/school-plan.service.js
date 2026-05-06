@@ -43,44 +43,50 @@ Returner KUN dette JSON-objektet, ingenting annet:
 // ── Prompt A: Tekst- og lekseanalytiker (tekstside) ─────────────
 
 function buildTextAnalysisPrompt(dates, dateMap) {
-  return `Du er en ekspert på teksttolking. Analyser bildet av ukeplanens tekstsider.
+  return `Du analyserer forsiden av en norsk ukeplan fra barneskolen (en tekstbasert A4-side, ikke et timeplan-rutenett).
 
-**Dato-anker:** Uke som dekker Mandag ${formatNorwegianShort(dates[0])} - Fredag ${formatNorwegianShort(dates[4])}.
-
-**DATO-MAPPING (forhåndsberegnet — BRUK DISSE):**
+**DATO-MAPPING (bruk alltid disse eksakte datoene):**
 - Mandag = ${dateMap.Mandag} (${formatNorwegianShort(dates[0])})
 - Tirsdag = ${dateMap.Tirsdag} (${formatNorwegianShort(dates[1])})
 - Onsdag = ${dateMap.Onsdag} (${formatNorwegianShort(dates[2])})
 - Torsdag = ${dateMap.Torsdag} (${formatNorwegianShort(dates[3])})
 - Fredag = ${dateMap.Fredag} (${formatNorwegianShort(dates[4])})
 
-**Instrukser:**
+---
 
-### 1. **Seksjon "Beskjeder":**
-   - Alt her blir "information" med dato = ${dateMap.Mandag} (Mandag).
-   - Lag en "information"-event per tydelig beskjed.
+### SEKSJON "Beskjeder" (evt. "Informasjon", "Melding"):
+Lag én "information"-hendelse. Dato = ${dateMap.Mandag}. Tittel: "Beskjed fra skolen". Beskrivelse: kopier teksten ordrett.
 
-### 2. **Seksjon "Ordenselever":**
-   - Hopp over denne seksjonen. Den inneholder kun navn og har ingen relevant info for kalenderen.
+### SEKSJON "Ordenselever", "Ukens mål", "Læringsmål", "Sosialt mål":
+HOPP OVER. Ingen hendelser.
 
-### 3. Seksjon "Lekser til":
-- **VISUELT ANKER:** Du SKAL først identifisere overskriften på kolonnen (f.eks. "Onsdag") og deretter lese kun teksten som står direkte vertikalt under denne overskriften. 
-- **1:1 MAPPING:** Teksten skal lagres på den faktiske datoen den står oppført under i planen. Ingen dagsforskyvning skal skje i OCR-prosessen.
-- **TOMME FELT:** Hvis en kolonne er tom, inneholder kun bindestreker, eller kun har fagnavn uten instruks (f.eks. kun ordet "Norsk"), skal du **IKKE** opprette et event.
+### SEKSJON "Lekser til" / "Ukens lekser":
 
-**Mapping-regler:**
-- **Ukelekse:** Tekst under "Ukelekse" eller generelle fag-lekser → "category": "homework", "date": ${dateMap.Mandag}, "title": "Ukelekse: [Fag]".
-- **Lekse til Tirsdag:** Tekst direkte under overskriften "Tirsdag" → "category": "homework", "date": ${dateMap.Tirsdag}, "title": "Lekse tirsdag".
-- **Lekse til Onsdag:** Tekst direkte under overskriften "Onsdag" → "category": "homework", "date": ${dateMap.Onsdag}, "title": "Lekse onsdag".
-- **Lekse til Torsdag:** Tekst direkte under overskriften "Torsdag" → "category": "homework", "date": ${dateMap.Torsdag}, "title": "Lekse torsdag".
-- **Lekse til Fredag:** Tekst direkte under overskriften "Fredag" → "category": "homework", "date": ${dateMap.Fredag}, "title": "Lekse fredag".
+**A. Ukelekse-blokken** (tekst som gjelder hele uken, vanligvis øverst i seksjonen):
+Dato = ${dateMap.Mandag} for alle. Lag ÉN separat hendelse per punkt/linje:
 
-**KATEGORIER:**
-- "information": Generell informasjon og beskjeder fra skolen.
-- "reminder": Logistikk, prøver, "husk"-punkter.
-- "homework": Alle typer lekser.
+- Punkt MED fagnavn-prefiks (f.eks. "Norsk:", "Matematikk:", "Engelsk:"):
+  → title: "Ukelekse: [Fagnavn]"  (f.eks. "Ukelekse: Norsk")
+  → description: teksten etter kolonet — kopier nøyaktig inkl. sidetall, oppgavenummer og minutter
+  → category: "weekly_homework"
 
-**UTDATA:** Returner KUN et rent JSON-objekt:
+- Punkt UTEN fagnavn-prefiks (f.eks. "Lad læringsbrettet...", "Les i boken din..."):
+  → title: "Ukelekse"
+  → description: hele teksten
+  → category: "weekly_homework"
+
+**B. Dagskolonne-tabellen** (kolonner med ukedagsnavn: Mandag, Tirsdag, Onsdag, Torsdag, Fredag):
+Identifiser kolonneoverskriften visuelt og les kun teksten rett under den tilhørende kolonnen.
+Tomme kolonner, bindestreker eller blanke felt → ingen hendelse.
+
+For hver kolonne MED tekst, bestem kategori slik:
+- Logistisk handling (inneholder ord som "pakk", "ta med", "husk", "rydd", "lever", "ta hjem", "sett i sekken") → category: "reminder", title: selve teksten (maks 50 tegn)
+- Faglig oppgave (les, skriv, øv, gjør, lær) → category: "homework", title: selve teksten (maks 50 tegn)
+Beskrivelse = teksten kopiert ordrett. Dato = datoen for kolonnen.
+
+---
+
+**UTDATA:** Returner KUN dette JSON-objektet, ingen annen tekst:
 {
   "events": [
     { "date": "YYYY-MM-DD", "title": "string", "description": "string", "category": "information|reminder|homework" }
@@ -103,21 +109,33 @@ function buildGridAnalysisPrompt(dates, dateMap) {
 - Kolonne 4 = Torsdag (${formatNorwegianShort(dates[3])}) = ${dateMap.Torsdag}
 - Kolonne 5 = Fredag (${formatNorwegianShort(dates[4])}) = ${dateMap.Fredag}
 
+**VIKTIG OM LAYOUT:** Kolonneoverskriftene (dagnavnene) kan være rotert 90 grader i bildet. Les dem nøye. Rad-overskriftene til venstre viser time-nummer (1.time, 2.time osv.).
+
 **KRITISKE INSTRUKSER:**
 
-1. **IGNORER standard skolefag.** Matte, Norsk, Engelsk, Naturfag, Samfunnsfag, KRLE, Musikk, K&H, Kunst og Håndverk, Matematikk — IKKE lag events for disse med mindre de har spesiell logistikk-info.
+1. **IGNORER standard skolefag** som kun nevner fagnavnet uten ekstra info. Matte, Norsk, Engelsk, Naturfag, Samfunnsfag, KRLE, Musikk, K&H — ignorer BARE fagnavn alene. Hvis det er tilleggstekst i samme celle, les den.
 
-2. **SØK ETTER logistikk-stikkord:** Husk, Ta med, Klær, Utstyr, Tur, Sekk, Tursekk, Matpakke, Gymtøy, Gym, Svømming, Uteskole, Friluft, Skidag, Aktivitetsdag, Felles aktivitet.
+2. **SØK ETTER følgende — lag en "reminder" for hvert funn:**
 
-3. **GYM / Svømming:** Lag en reminder for hver dag som har Gym eller Svømming. Tittel: "Husk gymtøy" / "Husk badetøy". Beskriv hva som trengs.
+   **Logistikk:** Husk, Ta med, Klær, Utstyr, Tur, Sekk, Tursekk, Matpakke, Gymtøy, Gym, Svømming, Uteskole, Friluft, Skidag, Aktivitetsdag, Felles aktivitet, Dugnad, Leirskole
 
-4. **UTESKOLE:** Trekk ut ALL tekst om utstyr, bekledning og oppmøte som en reminder. Tittel: "Husk til Uteskole". Beskrivelse: alt om klær, sekk, mat, oppmøtested.
+   **Prøver og faglige hendelser:** Prøve, Klasseprøve, Gloseprøve, Skriveprøve, Test, Høreprøve, Tentamen, Diktat, Fagdag
 
-5. **Turer og spesielle aktiviteter:** Alt som bryter med vanlig undervisning og krever at foreldre gjør noe (pakker sekk, sender med utstyr, leverer tidlig osv).
+   **Skoletid-endringer:** Skoleavslutning, Tidlig slutt, Kortdag, Planleggingsdag, Fri, Fridag, Utdeling, Dele ut
 
-6. **Alt du finner skal ha category "reminder".**
+   **Spesielle aktiviteter:** Stasjoner (som erstatning for vanlig undervisning), Aktivitetsdag, Tema-dag, Besøk, Teater, Konsert, Idrettsdag, Svømmehall
 
-7. **Returner TOMT events-array hvis du ikke finner noe logistikk-relevant.**
+3. **GYM / Svømming:** Lag en reminder for hver dag. Tittel: "Husk gymtøy" / "Husk badetøy".
+
+4. **UTESKOLE:** Trekk ut ALL tekst om utstyr, bekledning og oppmøte. Tittel: "Husk til Uteskole". Beskrivelse: kopier all relevant tekst fra cellen.
+
+5. **PRØVER:** Tittel: "[Fag]prøve" (f.eks. "Gloseprøve" eller "Matematikkprøve"). Beskrivelse: eventuell tilleggstekst om pensum.
+
+6. **SKOLEAVSLUTNING / KORTDAG:** Tittel: "Kortere skoledag". Beskrivelse: klokkeslett og dag.
+
+7. **Alt du finner skal ha category "reminder".**
+
+8. **Returner TOMT events-array hvis du ikke finner noe relevant.**
 
 **JSON-FORMAT:**
 {

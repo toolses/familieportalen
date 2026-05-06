@@ -347,7 +347,22 @@ export class SchoolDataService {
     if (!hid) return;
 
     const state = this.getState();
-    const raw = { ...state, activeWeek: this.activeWeek(), updatedAt: new Date().toISOString() };
+
+    // Firestore documents are capped at 1 MB. Base64 plan images accumulate week-over-week
+    // and will eventually cause writes to fail silently. Strip images from all but the most
+    // recently saved plan per child so the document stays well within the limit.
+    const prunedPlans: typeof state.plans = {};
+    for (const [childId, plans] of Object.entries(state.plans ?? {})) {
+      if (!plans.length) { prunedPlans[childId] = plans; continue; }
+      const latestSavedAt = Math.max(...plans.map((p) => new Date(p.savedAt).getTime()));
+      prunedPlans[childId] = plans.map((p) => {
+        if (new Date(p.savedAt).getTime() === latestSavedAt) return p;
+        const { images: _stripped, ...rest } = p;
+        return rest;
+      });
+    }
+
+    const raw = { ...state, plans: prunedPlans, activeWeek: this.activeWeek(), updatedAt: new Date().toISOString() };
     // Strip undefined values — Firestore rejects them
     const data = JSON.parse(JSON.stringify(raw));
 
@@ -390,7 +405,21 @@ export class SchoolDataService {
     this.children.set(state.children ?? []);
     this.activeChildId.set(state.activeChildId ?? null);
     this.householdLabel.set(state.householdLabel ?? null);
-    this.plansMap.set(state.plans ?? {});
+
+    // Migrate legacy data: events with category 'homework' and title starting with 'Ukelekse'
+    // were stored before the dedicated 'weekly_homework' category existed.
+    const migratedPlans: typeof state.plans = {};
+    for (const [childId, plans] of Object.entries(state.plans ?? {})) {
+      migratedPlans[childId] = (plans ?? []).map((plan) => ({
+        ...plan,
+        events: plan.events.map((e) =>
+          e.category === 'homework' && e.title.toLowerCase().startsWith('ukelekse')
+            ? { ...e, category: 'weekly_homework' as const }
+            : e
+        ),
+      }));
+    }
+    this.plansMap.set(migratedPlans);
     this.baseRotation.set(state.baseRotation ?? null);
     this.residencyOverrides.set(state.residencyOverrides ?? {});
     // Migrate old single-value assignedTo to array

@@ -1,4 +1,26 @@
 /**
+ * Preprocesses a base64 image for AI/OCR: converts to grayscale and boosts contrast
+ * so text stands out clearly against the background. Returns a new base64 string.
+ * The preview image is kept unchanged — only the copy sent to the AI is processed.
+ */
+export function preprocessImageForAI(base64: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.filter = 'grayscale(1) contrast(1.4) brightness(1.05)';
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+    };
+    img.onerror = () => resolve(base64);
+    img.src = `data:image/jpeg;base64,${base64}`;
+  });
+}
+
+/**
  * Skalerer ned et base64/data-URL-bilde til maks bredde.
  * Returnerer JPEG data-URL med redusert kvalitet for å spare localStorage-plass.
  */

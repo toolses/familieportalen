@@ -35,6 +35,7 @@ export interface WeekDayOption {
                     class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="school_class">Skoletime</option>
               <option value="homework">Lekse</option>
+              <option value="weekly_homework">Ukelekse</option>
               <option value="reminder">Påminnelse</option>
               <option value="information">Informasjon</option>
             </select>

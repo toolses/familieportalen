@@ -9,7 +9,7 @@ export interface SchoolEvent {
   date: string;
   title: string;
   description: string;
-  category: 'school_class' | 'homework' | 'reminder' | 'information';
+  category: 'school_class' | 'homework' | 'weekly_homework' | 'reminder' | 'information';
   completed?: boolean;
 }
 
