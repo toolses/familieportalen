@@ -559,7 +559,7 @@ export class SkoleComponent implements OnInit {
 
   // ── Scan flow ──────────────────────
 
-  onImagesReady(images: { front: string; back?: string; frontPreview: string; backPreview?: string }) {
+  onImagesReady(images: { front: string; gridTop: string; gridBottom: string; frontPreview: string; backPreview?: string }) {
     this.scanError.set(null);
     this.reviewImages.set({
       front: images.frontPreview,
@@ -567,7 +567,8 @@ export class SkoleComponent implements OnInit {
     });
     this.api.parse({
       frontImage: images.front,
-      backImage: images.back,
+      gridImageTop: images.gridTop,
+      gridImageBottom: images.gridBottom,
       weekOverride: this.scanWeekNumber,
       yearOverride: this.scanYear,
     }).subscribe({

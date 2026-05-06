@@ -51,6 +51,7 @@ type Tab = 'informasjon' | 'beskjeder' | 'lekser';
                   <option value="information">Informasjon</option>
                   <option value="reminder">Påminnelse</option>
                   <option value="homework">Lekse</option>
+                  <option value="weekly_homework">Ukelekse</option>
                   <option value="school_class">Fag</option>
                 </select>
                 <div class="flex items-center gap-2 shrink-0">

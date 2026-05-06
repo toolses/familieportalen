@@ -7,7 +7,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { preprocessImageForAI } from '../../shared/utils/image-utils';
+import { preprocessImageForAI, splitImageInHalf } from '../../shared/utils/image-utils';
 
 type CaptureStep = 'idle' | 'front' | 'back' | 'processing';
 
@@ -212,7 +212,7 @@ type CaptureStep = 'idle' | 'front' | 'back' | 'processing';
   `,
 })
 export class ImageCaptureComponent implements OnDestroy {
-  @Output() imagesReady = new EventEmitter<{ front: string; back?: string; frontPreview: string; backPreview?: string }>();
+  @Output() imagesReady = new EventEmitter<{ front: string; gridTop: string; gridBottom: string; frontPreview: string; backPreview?: string }>();
 
   videoEl = viewChild<ElementRef<HTMLVideoElement>>('videoEl');
   canvasEl = viewChild<ElementRef<HTMLCanvasElement>>('canvasEl');
@@ -369,15 +369,17 @@ export class ImageCaptureComponent implements OnDestroy {
     if (!front) return;
     this.step.set('processing');
 
-    // Preprocess images for AI (grayscale + contrast boost) without touching the previews
-    const [frontAI, backAI] = await Promise.all([
+    const gridSource = this.backImage() ?? front;
+    const [frontAI, gridAI] = await Promise.all([
       preprocessImageForAI(front),
-      this.backImage() ? preprocessImageForAI(this.backImage()!) : Promise.resolve(undefined),
+      preprocessImageForAI(gridSource),
     ]);
+    const { top: gridTop, bottom: gridBottom } = await splitImageInHalf(gridAI);
 
     this.imagesReady.emit({
       front: frontAI,
-      ...(backAI ? { back: backAI } : {}),
+      gridTop,
+      gridBottom,
       frontPreview: this.frontPreview()!,
       ...(this.backPreview() ? { backPreview: this.backPreview()! } : {}),
     });

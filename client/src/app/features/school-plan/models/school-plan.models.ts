@@ -15,7 +15,8 @@ export interface SchoolEvent {
 
 export interface ParseRequest {
   frontImage: string;
-  backImage?: string;
+  gridImageTop: string;
+  gridImageBottom: string;
   weekOverride?: number;
   yearOverride?: number;
 }

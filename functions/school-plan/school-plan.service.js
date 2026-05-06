@@ -197,7 +197,7 @@ function mergeEvents(eventsA, eventsB, validDates) {
 // ── Main export ─────────────────────────────────────────────────
 
 export async function parseSchoolPlan(frontImage, backImage, options = {}) {
-  const { weekOverride, yearOverride } = options;
+  const { weekOverride, yearOverride, gridImageTop: gridTopRaw, gridImageBottom: gridBottomRaw } = options;
   const toImageContent = (b64) => {
     const data = b64.startsWith('data:') ? b64.split(',')[1] : b64;
     return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } };
@@ -205,6 +205,11 @@ export async function parseSchoolPlan(frontImage, backImage, options = {}) {
 
   const frontContent = toImageContent(frontImage);
   const backContent = backImage ? toImageContent(backImage) : null;
+
+  // Grid images: use split halves if provided, otherwise fall back to full grid image
+  const useGridSplit = !!(gridTopRaw && gridBottomRaw);
+  const gridTopContent = useGridSplit ? toImageContent(gridTopRaw) : (backContent || frontContent);
+  const gridBottomContent = useGridSplit ? toImageContent(gridBottomRaw) : null;
 
   // ── Step 1: Extract week number + year ──────────────────────
   console.log('[Split&Merge] Step 1: Extracting week info...');
@@ -242,7 +247,6 @@ export async function parseSchoolPlan(frontImage, backImage, options = {}) {
 
   const { uke: aiUke, aar: aiAar, trinn } = weekInfo;
 
-  // Use override if provided, otherwise fall back to AI-detected values
   const uke = weekOverride || aiUke;
   const aar = yearOverride || aiAar;
 
@@ -262,18 +266,17 @@ export async function parseSchoolPlan(frontImage, backImage, options = {}) {
 
   console.log(`[Split&Merge] Uke ${uke}, ${aar}: ${dates.join(', ')}`);
 
-  // ── Step 3: Split — two parallel AI calls ───────────────────
+  // ── Step 3: Parallel AI calls ────────────────────────────────
   const promptA = buildTextAnalysisPrompt(dates, dateMap);
   const promptB = buildGridAnalysisPrompt(dates, dateMap);
 
-  const gridImage = backContent || frontContent;
+  const callCount = useGridSplit ? 3 : 2;
+  console.log(`[Split&Merge] Step 3: ${callCount} parallelle kall (A: tekst, B-topp, ${useGridSplit ? 'B-bunn' : 'B: full rutenett'})...`);
 
-  console.log('[Split&Merge] Step 3: Sending parallel calls (Prompt A: tekst, Prompt B: rutenett)...');
-
-  let resultA, resultB;
+  let resultA, resultBTop, resultBBottom;
   try {
     const client = await getAnthropic();
-    [resultA, resultB] = await Promise.all([
+    const calls = [
       client.messages.create({
         model: MODEL,
         system: promptA,
@@ -284,11 +287,21 @@ export async function parseSchoolPlan(frontImage, backImage, options = {}) {
       client.messages.create({
         model: MODEL,
         system: promptB,
-        messages: [{ role: 'user', content: [gridImage, { type: 'text', text: 'Analyser bildet.' }] }],
+        messages: [{ role: 'user', content: [gridTopContent, { type: 'text', text: 'Analyser bildet.' }] }],
         temperature: 1,
         max_tokens: 4096,
       }),
-    ]);
+    ];
+    if (useGridSplit) {
+      calls.push(client.messages.create({
+        model: MODEL,
+        system: promptB,
+        messages: [{ role: 'user', content: [gridBottomContent, { type: 'text', text: 'Analyser bildet.' }] }],
+        temperature: 1,
+        max_tokens: 4096,
+      }));
+    }
+    [resultA, resultBTop, resultBBottom] = await Promise.all(calls);
   } catch (apiErr) {
     console.error('[Split&Merge] Claude API-feil i parallelle kall:');
     console.error('  Status:', apiErr.status);
@@ -300,35 +313,50 @@ export async function parseSchoolPlan(frontImage, backImage, options = {}) {
   }
 
   const rawA = resultA.content[0].text;
-  const rawB = resultB.content[0].text;
+  const rawBTop = resultBTop.content[0].text;
+  const rawBBottom = resultBBottom?.content[0].text ?? '';
 
   console.log('[Split&Merge] Prompt A rå-lengde:', rawA.length, 'tegn');
-  console.log('[Split&Merge] Prompt B rå-lengde:', rawB.length, 'tegn');
+  console.log('[Split&Merge] Prompt B-topp rå-lengde:', rawBTop.length, 'tegn');
+  if (useGridSplit) console.log('[Split&Merge] Prompt B-bunn rå-lengde:', rawBBottom.length, 'tegn');
 
   // ── Step 4: Parse & Merge ─────────────────────────────────
-  let parsedA, parsedB;
+  let parsedA, parsedBTop, parsedBBottom;
   try {
     parsedA = extractJson(rawA);
   } catch (e) {
     console.error('[Split&Merge] Prompt A JSON-feil. Rå tekst:', rawA);
     const err = new Error(`JSON-parsing feilet for Prompt A (tekst): ${e.message}`);
-    err.rawAiText = `--- PROMPT A (FEILET) ---\n${rawA}\n\n--- PROMPT B ---\n${rawB}`;
+    err.rawAiText = `--- PROMPT A (FEILET) ---\n${rawA}\n\n--- PROMPT B-TOPP ---\n${rawBTop}\n\n--- PROMPT B-BUNN ---\n${rawBBottom}`;
     throw err;
   }
 
   try {
-    parsedB = extractJson(rawB);
+    parsedBTop = extractJson(rawBTop);
   } catch (e) {
-    console.error('[Split&Merge] Prompt B JSON-feil. Rå tekst:', rawB);
-    const err = new Error(`JSON-parsing feilet for Prompt B (rutenett): ${e.message}`);
-    err.rawAiText = `--- PROMPT A ---\n${rawA}\n\n--- PROMPT B (FEILET) ---\n${rawB}`;
+    console.error('[Split&Merge] Prompt B-topp JSON-feil. Rå tekst:', rawBTop);
+    const err = new Error(`JSON-parsing feilet for Prompt B-topp (rutenett): ${e.message}`);
+    err.rawAiText = `--- PROMPT A ---\n${rawA}\n\n--- PROMPT B-TOPP (FEILET) ---\n${rawBTop}\n\n--- PROMPT B-BUNN ---\n${rawBBottom}`;
     throw err;
   }
 
-  const eventsA = Array.isArray(parsedA.events) ? parsedA.events : [];
-  const eventsB = Array.isArray(parsedB.events) ? parsedB.events : [];
+  if (useGridSplit) {
+    try {
+      parsedBBottom = extractJson(rawBBottom);
+    } catch (e) {
+      console.error('[Split&Merge] Prompt B-bunn JSON-feil. Rå tekst:', rawBBottom);
+      const err = new Error(`JSON-parsing feilet for Prompt B-bunn (rutenett): ${e.message}`);
+      err.rawAiText = `--- PROMPT A ---\n${rawA}\n\n--- PROMPT B-TOPP ---\n${rawBTop}\n\n--- PROMPT B-BUNN (FEILET) ---\n${rawBBottom}`;
+      throw err;
+    }
+  }
 
-  console.log(`[Split&Merge] Prompt A: ${eventsA.length} events, Prompt B: ${eventsB.length} events`);
+  const eventsA = Array.isArray(parsedA.events) ? parsedA.events : [];
+  const eventsBTop = Array.isArray(parsedBTop.events) ? parsedBTop.events : [];
+  const eventsBBottom = parsedBBottom && Array.isArray(parsedBBottom.events) ? parsedBBottom.events : [];
+  const eventsB = [...eventsBTop, ...eventsBBottom];
+
+  console.log(`[Split&Merge] Prompt A: ${eventsA.length} events, Prompt B-topp: ${eventsBTop.length}, B-bunn: ${eventsBBottom.length}`);
 
   const mergedEvents = mergeEvents(eventsA, eventsB, dates);
   console.log(`[Split&Merge] Merged: ${mergedEvents.length} events totalt`);
@@ -339,7 +367,7 @@ export async function parseSchoolPlan(frontImage, backImage, options = {}) {
   };
 
   return {
-    raw: `--- PROMPT A (Tekst, ${eventsA.length} events) ---\n${rawA}\n\n--- PROMPT B (Rutenett, ${eventsB.length} events) ---\n${rawB}`,
+    raw: `--- PROMPT A (Tekst, ${eventsA.length} events) ---\n${rawA}\n\n--- PROMPT B-TOPP (${eventsBTop.length} events) ---\n${rawBTop}\n\n--- PROMPT B-BUNN (${eventsBBottom.length} events) ---\n${rawBBottom}`,
     rawOcr: '',
     data,
   };

@@ -1,3 +1,30 @@
+/** Splits a preprocessed base64 JPEG into top and bottom halves. */
+export function splitImageInHalf(base64: string): Promise<{ top: string; bottom: string }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const halfH = Math.ceil(img.height / 2);
+
+      const topCanvas = document.createElement('canvas');
+      topCanvas.width = img.width;
+      topCanvas.height = halfH;
+      topCanvas.getContext('2d')!.drawImage(img, 0, 0, img.width, halfH, 0, 0, img.width, halfH);
+
+      const bottomCanvas = document.createElement('canvas');
+      bottomCanvas.width = img.width;
+      bottomCanvas.height = img.height - halfH;
+      bottomCanvas.getContext('2d')!.drawImage(img, 0, halfH, img.width, img.height - halfH, 0, 0, img.width, img.height - halfH);
+
+      resolve({
+        top: topCanvas.toDataURL('image/jpeg', 0.92).split(',')[1],
+        bottom: bottomCanvas.toDataURL('image/jpeg', 0.92).split(',')[1],
+      });
+    };
+    img.onerror = () => resolve({ top: base64, bottom: base64 });
+    img.src = `data:image/jpeg;base64,${base64}`;
+  });
+}
+
 /**
  * Preprocesses a base64 image for AI/OCR: converts to grayscale and boosts contrast
  * so text stands out clearly against the background. Returns a new base64 string.
