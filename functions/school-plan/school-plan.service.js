@@ -1,17 +1,17 @@
 import { extractJson } from '../shared/extract-json.js';
 
-let Groq;
-let groq;
-async function getGroq() {
-  if (!groq) {
-    if (!Groq) {
-      Groq = (await import('groq-sdk')).default;
+let Anthropic;
+let anthropic;
+async function getAnthropic() {
+  if (!anthropic) {
+    if (!Anthropic) {
+      Anthropic = (await import('@anthropic-ai/sdk')).default;
     }
-    groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
-  return groq;
+  return anthropic;
 }
-const MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+const MODEL = 'claude-sonnet-4-6';
 
 /**
  * ISO week date calculation — same logic as the frontend.
@@ -198,10 +198,10 @@ function mergeEvents(eventsA, eventsB, validDates) {
 
 export async function parseSchoolPlan(frontImage, backImage, options = {}) {
   const { weekOverride, yearOverride } = options;
-  const toImageContent = (b64) => ({
-    type: 'image_url',
-    image_url: { url: b64.startsWith('data:') ? b64 : `data:image/jpeg;base64,${b64}` },
-  });
+  const toImageContent = (b64) => {
+    const data = b64.startsWith('data:') ? b64.split(',')[1] : b64;
+    return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } };
+  };
 
   const frontContent = toImageContent(frontImage);
   const backContent = backImage ? toImageContent(backImage) : null;
@@ -210,26 +210,24 @@ export async function parseSchoolPlan(frontImage, backImage, options = {}) {
   console.log('[Split&Merge] Step 1: Extracting week info...');
   let step1;
   try {
-    step1 = await (await getGroq()).chat.completions.create({
+    step1 = await (await getAnthropic()).messages.create({
       model: MODEL,
-      messages: [
-        { role: 'system', content: EXTRACT_WEEK_PROMPT },
-        { role: 'user', content: [frontContent] },
-      ],
+      system: EXTRACT_WEEK_PROMPT,
+      messages: [{ role: 'user', content: [frontContent, { type: 'text', text: 'Analyser bildet.' }] }],
       temperature: 0.0,
       max_tokens: 100,
     });
   } catch (apiErr) {
-    console.error('[Split&Merge] Step 1 Groq-feil:');
+    console.error('[Split&Merge] Step 1 Claude-feil:');
     console.error('  Status:', apiErr.status);
     console.error('  Melding:', apiErr.message);
     if (apiErr.error) console.error('  API-respons:', JSON.stringify(apiErr.error, null, 2));
-    const err = new Error(`Groq API-feil i steg 1 (uke-ekstraksjon): ${apiErr.message}`);
+    const err = new Error(`Claude API-feil i steg 1 (uke-ekstraksjon): ${apiErr.message}`);
     err.rawAiText = apiErr.message;
     throw err;
   }
 
-  const step1Raw = step1.choices[0].message.content;
+  const step1Raw = step1.content[0].text;
   console.log('[Split&Merge] Step 1 raw:', step1Raw);
 
   let weekInfo;
@@ -274,39 +272,35 @@ export async function parseSchoolPlan(frontImage, backImage, options = {}) {
 
   let resultA, resultB;
   try {
-    const client = await getGroq();
+    const client = await getAnthropic();
     [resultA, resultB] = await Promise.all([
-      client.chat.completions.create({
+      client.messages.create({
         model: MODEL,
-        messages: [
-          { role: 'system', content: promptA },
-          { role: 'user', content: [frontContent] },
-        ],
-        temperature: 0.1,
+        system: promptA,
+        messages: [{ role: 'user', content: [frontContent, { type: 'text', text: 'Analyser bildet.' }] }],
+        temperature: 1,
         max_tokens: 4096,
       }),
-      client.chat.completions.create({
+      client.messages.create({
         model: MODEL,
-        messages: [
-          { role: 'system', content: promptB },
-          { role: 'user', content: [gridImage] },
-        ],
-        temperature: 0.1,
+        system: promptB,
+        messages: [{ role: 'user', content: [gridImage, { type: 'text', text: 'Analyser bildet.' }] }],
+        temperature: 1,
         max_tokens: 4096,
       }),
     ]);
   } catch (apiErr) {
-    console.error('[Split&Merge] Groq API-feil i parallelle kall:');
+    console.error('[Split&Merge] Claude API-feil i parallelle kall:');
     console.error('  Status:', apiErr.status);
     console.error('  Melding:', apiErr.message);
     if (apiErr.error) console.error('  API-respons:', JSON.stringify(apiErr.error, null, 2));
-    const err = new Error(`Groq API-feil i analyse: ${apiErr.message}`);
+    const err = new Error(`Claude API-feil i analyse: ${apiErr.message}`);
     err.rawAiText = apiErr.message;
     throw err;
   }
 
-  const rawA = resultA.choices[0].message.content;
-  const rawB = resultB.choices[0].message.content;
+  const rawA = resultA.content[0].text;
+  const rawB = resultB.content[0].text;
 
   console.log('[Split&Merge] Prompt A rå-lengde:', rawA.length, 'tegn');
   console.log('[Split&Merge] Prompt B rå-lengde:', rawB.length, 'tegn');
