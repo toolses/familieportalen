@@ -54,7 +54,7 @@ export interface WeekDayOption {
         </div>
 
         <div class="space-y-2 pt-1">
-          @if (category === 'homework') {
+          @if (category === 'homework' || category === 'weekly_homework') {
             <button (click)="onToggleComplete()"
                     class="w-full py-3 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                     [class]="completed ? 'bg-gray-100 text-gray-500' : 'bg-green-500 text-white'">
