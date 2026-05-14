@@ -1,5 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { SlicePipe } from '@angular/common';
+import { Component, afterNextRender, computed, inject, signal } from '@angular/core';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { ResidencyService } from '../../shared/services/residency.service';
 import { GoogleCalendarService, GoogleCalendarEvent } from '../../shared/services/google-calendar.service';
@@ -36,7 +35,7 @@ interface CalendarDay {
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [SlicePipe, SwipeDirective, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
+  imports: [SwipeDirective, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
   template: `
     <div class="px-4 pt-2 pb-4 space-y-3" appSwipe
          (swipeLeft)="viewMode() === 'week' ? nextWeek() : nextMonth()"
@@ -206,13 +205,7 @@ interface CalendarDay {
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     @if (event.description) {
-                      @let evtExp = isExpanded(event.childId + event.date + event.title);
-                      @let evtLong = event.description.length > 150;
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
-                      @if (evtLong) {
-                        <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
-                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                      }
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
@@ -234,13 +227,7 @@ interface CalendarDay {
                     }
                   </div>
                   @if (reminder.description) {
-                    @let remExp = isExpanded('rem-' + reminder.id);
-                    @let remLong = reminder.description.length > 150;
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ remLong && !remExp ? (reminder.description | slice:0:150) + '…' : reminder.description }}</p>
-                    @if (remLong) {
-                      <span (click)="$event.stopPropagation(); toggleExpand('rem-' + reminder.id)"
-                            class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ remExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                    }
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
                   }
                   <div class="flex items-center gap-2 mt-1">
                     <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(reminder.assignedTo)">
@@ -280,13 +267,7 @@ interface CalendarDay {
                   <span class="font-medium text-gray-800 text-sm">{{ item.event.title }}</span>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatManualEventTimeLabel(item.event) }}</p>
                   @if (item.event.description) {
-                    @let ceExp = isExpanded('ce-' + item.event.id);
-                    @let ceLong = item.event.description.length > 150;
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ ceLong && !ceExp ? (item.event.description | slice:0:150) + '…' : item.event.description }}</p>
-                    @if (ceLong) {
-                      <span (click)="$event.stopPropagation(); toggleExpand('ce-' + item.event.id)"
-                            class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ ceExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                    }
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ item.event.description }}</p>
                   }
                   <div class="flex items-center gap-2 mt-1">
                     <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(item.event.assignedTo)">
@@ -319,15 +300,7 @@ interface CalendarDay {
                   </div>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
                   @if (event.description) {
-                    @let expanded = isExpanded(event.id + event.date);
-                    @let long = event.description.length > 150;
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ long && !expanded ? (event.description | slice:0:200) + '…' : event.description }}</p>
-                    @if (long) {
-                      <button (click)="toggleExpand(event.id + event.date)"
-                              class="text-xs text-blue-500 font-medium mt-0.5">
-                        {{ expanded ? 'Vis mindre' : 'Vis mer' }}
-                      </button>
-                    }
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                   }
                   @if (event.location) {
                     <p class="text-xs text-gray-400">{{ event.location }}</p>
@@ -343,7 +316,7 @@ interface CalendarDay {
       @if (viewMode() === 'week') {
       <div class="space-y-1">
         @for (day of calendarDays(); track day.date) {
-          <div class="sticky top-0 z-10">
+          <div class="sticky top-0 z-10" [id]="day.isToday ? 'today-section' : null">
             @if (day.residency) {
               <div class="h-1 mx-1 rounded-sm"
                    [class]="day.residency === 'Mamma' ? 'bg-rose-300' : 'bg-blue-300'"></div>
@@ -382,13 +355,7 @@ interface CalendarDay {
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     @if (event.description) {
-                      @let evtExp = isExpanded(event.childId + event.date + event.title);
-                      @let evtLong = event.description.length > 150;
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
-                      @if (evtLong) {
-                        <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
-                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                      }
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
@@ -410,13 +377,7 @@ interface CalendarDay {
                     }
                   </div>
                   @if (reminder.description) {
-                    @let remExp = isExpanded('rem-' + reminder.id);
-                    @let remLong = reminder.description.length > 150;
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ remLong && !remExp ? (reminder.description | slice:0:150) + '…' : reminder.description }}</p>
-                    @if (remLong) {
-                      <span (click)="$event.stopPropagation(); toggleExpand('rem-' + reminder.id)"
-                            class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ remExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                    }
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
                   }
                   <div class="flex items-center gap-2 mt-1">
                     <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(reminder.assignedTo)">
@@ -456,13 +417,7 @@ interface CalendarDay {
                   <span class="font-medium text-gray-800 text-sm">{{ item.event.title }}</span>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatManualEventTimeLabel(item.event) }}</p>
                   @if (item.event.description) {
-                    @let ceExp = isExpanded('ce-' + item.event.id);
-                    @let ceLong = item.event.description.length > 150;
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ ceLong && !ceExp ? (item.event.description | slice:0:150) + '…' : item.event.description }}</p>
-                    @if (ceLong) {
-                      <span (click)="$event.stopPropagation(); toggleExpand('ce-' + item.event.id)"
-                            class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ ceExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                    }
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ item.event.description }}</p>
                   }
                   <div class="flex items-center gap-2 mt-1">
                     <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(item.event.assignedTo)">
@@ -495,15 +450,7 @@ interface CalendarDay {
                   </div>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
                   @if (event.description) {
-                    @let expanded = isExpanded(event.id + event.date);
-                    @let long = event.description.length > 150;
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ long && !expanded ? (event.description | slice:0:200) + '…' : event.description }}</p>
-                    @if (long) {
-                      <button (click)="toggleExpand(event.id + event.date)"
-                              class="text-xs text-blue-500 font-medium mt-0.5">
-                        {{ expanded ? 'Vis mindre' : 'Vis mer' }}
-                      </button>
-                    }
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                   }
                   @if (event.location) {
                     <p class="text-xs text-gray-400">{{ event.location }}</p>
@@ -632,17 +579,9 @@ export class CalendarComponent {
   weekOffset = signal(0);
   monthOffset = signal(0);
 
-  private expandedEventIds = signal(new Set<string>());
-
-  isExpanded(key: string): boolean {
-    return this.expandedEventIds().has(key);
-  }
-
-  toggleExpand(key: string): void {
-    this.expandedEventIds.update((s) => {
-      const next = new Set(s);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
+  constructor() {
+    afterNextRender(() => {
+      document.getElementById('today-section')?.scrollIntoView({ block: 'start' });
     });
   }
 
