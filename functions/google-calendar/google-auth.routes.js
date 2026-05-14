@@ -5,11 +5,17 @@ import { getFirestore } from 'firebase-admin/firestore';
 // Firestore path — only accessible via Admin SDK (bypasses client rules)
 const TOKEN_DOC = 'config/googleCalendar';
 
+const DEFAULT_REDIRECT_URI = 'https://familieportalen-11d5e.web.app/google-callback';
+
+function getRedirectUri() {
+  return process.env.GOOGLE_REDIRECT_URI || DEFAULT_REDIRECT_URI;
+}
+
 function createOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI ?? 'https://familieportalen-11d5e.web.app/google-callback',
+    getRedirectUri(),
   );
 }
 
@@ -48,14 +54,19 @@ const router = Router();
 
 // GET /api/auth/google/url
 router.get('/url', (_req, res) => {
-  console.log('Google OAuth config — client_id:', process.env.GOOGLE_CLIENT_ID?.slice(0, 20), 'redirect_uri:', process.env.GOOGLE_REDIRECT_URI);
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.error('Google OAuth er ikke konfigurert — GOOGLE_CLIENT_ID eller GOOGLE_CLIENT_SECRET mangler');
+    return res.status(503).json({ error: 'Google Kalender-integrasjon er ikke konfigurert på serveren.' });
+  }
+
+  const redirectUri = getRedirectUri();
   const client = createOAuth2Client();
   const url = client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: ['https://www.googleapis.com/auth/calendar.readonly'],
+    redirect_uri: redirectUri,
   });
-  console.log('Generated OAuth URL redirect_uri segment:', new URL(url).searchParams.get('redirect_uri'));
   res.json({ url });
 });
 
