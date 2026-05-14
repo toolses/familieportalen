@@ -193,6 +193,56 @@ type ConfirmMode = 'delete-child' | 'clear-all' | 'delete-member';
       @if (activeTab() === 'generelt') {
       <!-- Generelt-fane -->
 
+      <!-- Min kalender -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+        <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Min kalender</h3>
+
+        @if (google.personalConnected()) {
+          <div class="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-xl px-3 py-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Min Google Kalender tilkoblet – kun synlig for deg
+          </div>
+
+          @if (google.personalCalendars().length > 0) {
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700">Velg kalender</label>
+              <select [ngModel]="google.personalSelectedCalendarId()"
+                      (ngModelChange)="google.selectPersonalCalendar($event)"
+                      class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white">
+                @for (cal of google.personalCalendars(); track cal.id) {
+                  <option [value]="cal.id">{{ cal.summary }}</option>
+                }
+              </select>
+            </div>
+          } @else {
+            <button (click)="loadPersonalCalendars()"
+                    class="text-sm text-blue-600 font-medium">
+              Last inn kalenderliste
+            </button>
+          }
+
+          <button (click)="disconnectPersonalCalendar()"
+                  class="text-sm text-red-500 font-medium">
+            Koble fra min kalender
+          </button>
+        } @else {
+          <p class="text-sm text-gray-500">Koble til din personlige Google Kalender. Hendelsene er kun synlige for deg.</p>
+          <button (click)="connectPersonalCalendar()"
+                  class="flex items-center gap-2 w-full justify-center py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:scale-[0.98] transition-all hover:bg-gray-50">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Koble til min Google Kalender
+          </button>
+          @if (personalConnectError()) {
+            <p class="text-xs text-red-500">{{ personalConnectError() }}</p>
+          }
+        }
+      </div>
+
       <!-- Husstand -->
       <div class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
         <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Husstand</h3>
@@ -688,6 +738,7 @@ export class SettingsComponent {
   presetColors = PRESET_COLORS;
   saved = signal(false);
   googleConnectError = signal<string | null>(null);
+  personalConnectError = signal<string | null>(null);
   pushLoading = signal(false);
   testPushLoading = signal(false);
   testPushResult = signal<{ ok: boolean; message: string } | null>(null);
@@ -807,6 +858,23 @@ export class SettingsComponent {
 
   disconnectCalendar() {
     this.google.disconnect();
+  }
+
+  async loadPersonalCalendars() {
+    await this.google.fetchPersonalCalendars();
+  }
+
+  async connectPersonalCalendar() {
+    this.personalConnectError.set(null);
+    try {
+      await this.google.startPersonalConnectFlow();
+    } catch {
+      this.personalConnectError.set('Kunne ikke starte tilkobling. Prøv igjen.');
+    }
+  }
+
+  disconnectPersonalCalendar() {
+    this.google.disconnectPersonal();
   }
 
   async enablePushNotifications() {

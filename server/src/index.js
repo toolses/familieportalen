@@ -3,7 +3,9 @@ import express from 'express';
 import cors from 'cors';
 import { schoolPlanRouter } from './features/school-plan/school-plan.routes.js';
 import { googleAuthRouter } from './features/google/google-auth.routes.js';
+import { personalAuthRouter } from './features/google/personal-auth.routes.js';
 import { googleCalendarRouter } from './features/google/google-calendar.routes.js';
+import { personalCalendarRouter } from './features/google/personal-calendar.routes.js';
 
 process.on('uncaughtException', (err) => {
   console.error('[CRASH] uncaughtException:', err);
@@ -19,7 +21,9 @@ app.use(express.json({ limit: '10mb' }));
 
 app.use('/api/school-plan', schoolPlanRouter);
 app.use('/api/auth/google', googleAuthRouter);
+app.use('/api/auth/google/personal', personalAuthRouter);
 app.use('/api/calendar', googleCalendarRouter);
+app.use('/api/calendar/personal', personalCalendarRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.post('/api/dokumenter/notify-upload', (_req, res) => res.json({ sent: 0, message: 'Dev: ingen push i utviklingsmodus.' }));

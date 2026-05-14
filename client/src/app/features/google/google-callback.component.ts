@@ -21,12 +21,21 @@ export class GoogleCallbackComponent implements OnInit {
 
   ngOnInit(): void {
     const code = this.route.snapshot.queryParamMap.get('code');
-    if (code) {
-      this.google.handleCallback(code)
-        .then(() => this.router.navigate(['/innstillinger'], { queryParams: { google: 'connected' } }))
-        .catch(() => this.router.navigate(['/innstillinger'], { queryParams: { google: 'error' } }));
-    } else {
+    const state = this.route.snapshot.queryParamMap.get('state');
+
+    if (!code) {
       this.router.navigate(['/innstillinger']);
+      return;
     }
+
+    const isPersonal = state === 'personal';
+    const callbackFn = isPersonal
+      ? () => this.google.handlePersonalCallback(code)
+      : () => this.google.handleCallback(code);
+    const successParam = isPersonal ? 'personal-connected' : 'connected';
+
+    callbackFn()
+      .then(() => this.router.navigate(['/innstillinger'], { queryParams: { google: successParam } }))
+      .catch(() => this.router.navigate(['/innstillinger'], { queryParams: { google: 'error' } }));
   }
 }
