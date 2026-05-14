@@ -301,105 +301,58 @@ interface ChildUkelekser {
 
           <!-- Morgendagens påminnelser -->
           @if (tomorrowReminders().length > 0 || tomorrowManualReminders().length > 0) {
-            @if (showTomorrowProminent()) {
-              <div class="space-y-2">
-                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">Husk i morgen!</h3>
-                @for (event of tomorrowReminders(); track $index) {
-                  <button (click)="openEditEvent(event)" class="w-full flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3 text-left active:bg-amber-100 transition-colors">
-                    <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" [style.background]="event.childColor"></div>
-                    <div class="flex-1 min-w-0">
-                      <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
-                      @if (event.description) {
-                        @let evtExp = isExpanded(event.childId + event.date + event.title);
-                        @let evtLong = event.description.length > 150;
-                        <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
-                        @if (evtLong) {
-                          <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
-                                class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                        }
-                      }
-                      <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
-                    </div>
-                    <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
-                  </button>
-                }
-                @for (reminder of tomorrowManualReminders(); track reminder.id) {
-                  <button (click)="openEditReminder(reminder)" class="w-full flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3 text-left active:bg-amber-100 transition-colors">
-                    <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" [style.background]="getAssignedColor(reminder.assignedTo)"></div>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="font-medium text-gray-800 text-sm">{{ reminder.title }}</span>
-                        @if (reminder.time) {
-                          <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
-                        }
-                      </div>
-                      @if (reminder.description) {
-                        @let remExp = isExpanded('rem-' + reminder.id);
-                        @let remLong = reminder.description.length > 150;
-                        <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ remLong && !remExp ? (reminder.description | slice:0:150) + '…' : reminder.description }}</p>
-                        @if (remLong) {
-                          <span (click)="$event.stopPropagation(); toggleExpand('rem-' + reminder.id)"
-                                class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ remExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                        }
-                      }
-                      <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(reminder.assignedTo)">
-                        {{ getAssignedLabel(reminder.assignedTo) }}
-                      </p>
-                    </div>
-                    <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
-                  </button>
-                }
-              </div>
-            } @else {
-              <div class="space-y-2">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
+              @if (showTomorrowProminent()) {
+                <h3 class="text-xs font-semibold text-blue-500 uppercase tracking-wide px-1">Husk i morgen!</h3>
+              } @else {
                 <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">I morgen</h3>
-                @for (event of tomorrowReminders(); track $index) {
-                  <button (click)="openEditEvent(event)" class="w-full flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3 text-left active:bg-amber-100 transition-colors">
-                    <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" [style.background]="event.childColor"></div>
-                    <div class="flex-1 min-w-0">
-                      <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
-                      @if (event.description) {
-                        @let evtExp = isExpanded(event.childId + event.date + event.title);
-                        @let evtLong = event.description.length > 150;
-                        <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
-                        @if (evtLong) {
-                          <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
-                                class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                        }
+              }
+              @for (event of tomorrowReminders(); track $index) {
+                <button (click)="openEditEvent(event)" class="w-full flex gap-3 items-start bg-white border border-slate-200 rounded-xl p-3 text-left active:bg-slate-100 transition-colors">
+                  <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" [style.background]="event.childColor"></div>
+                  <div class="flex-1 min-w-0">
+                    <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
+                    @if (event.description) {
+                      @let evtExp = isExpanded(event.childId + event.date + event.title);
+                      @let evtLong = event.description.length > 150;
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
+                      @if (evtLong) {
+                        <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
+                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
                       }
-                      <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
-                    </div>
-                    <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
-                  </button>
-                }
-                @for (reminder of tomorrowManualReminders(); track reminder.id) {
-                  <button (click)="openEditReminder(reminder)" class="w-full flex gap-3 items-start bg-amber-50 border border-amber-100 rounded-xl p-3 text-left active:bg-amber-100 transition-colors">
-                    <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" [style.background]="getAssignedColor(reminder.assignedTo)"></div>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="font-medium text-gray-800 text-sm">{{ reminder.title }}</span>
-                        @if (reminder.time) {
-                          <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
-                        }
-                      </div>
-                      @if (reminder.description) {
-                        @let remExp = isExpanded('rem-' + reminder.id);
-                        @let remLong = reminder.description.length > 150;
-                        <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ remLong && !remExp ? (reminder.description | slice:0:150) + '…' : reminder.description }}</p>
-                        @if (remLong) {
-                          <span (click)="$event.stopPropagation(); toggleExpand('rem-' + reminder.id)"
-                                class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ remExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                        }
+                    }
+                    <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
+                  </div>
+                  <span class="text-[10px] text-blue-600 font-medium bg-blue-100 px-1.5 py-0.5 rounded shrink-0">I morgen</span>
+                </button>
+              }
+              @for (reminder of tomorrowManualReminders(); track reminder.id) {
+                <button (click)="openEditReminder(reminder)" class="w-full flex gap-3 items-start bg-white border border-slate-200 rounded-xl p-3 text-left active:bg-slate-100 transition-colors">
+                  <div class="w-2 h-2 rounded-full mt-1.5 shrink-0" [style.background]="getAssignedColor(reminder.assignedTo)"></div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="font-medium text-gray-800 text-sm">{{ reminder.title }}</span>
+                      @if (reminder.time) {
+                        <span class="text-[10px] text-gray-400">{{ reminder.time }}</span>
                       }
-                      <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(reminder.assignedTo)">
-                        {{ getAssignedLabel(reminder.assignedTo) }}
-                      </p>
                     </div>
-                    <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
-                  </button>
-                }
-              </div>
-            }
+                    @if (reminder.description) {
+                      @let remExp = isExpanded('rem-' + reminder.id);
+                      @let remLong = reminder.description.length > 150;
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ remLong && !remExp ? (reminder.description | slice:0:150) + '…' : reminder.description }}</p>
+                      @if (remLong) {
+                        <span (click)="$event.stopPropagation(); toggleExpand('rem-' + reminder.id)"
+                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ remExp ? 'Vis mindre' : 'Vis mer' }}</span>
+                      }
+                    }
+                    <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(reminder.assignedTo)">
+                      {{ getAssignedLabel(reminder.assignedTo) }}
+                    </p>
+                  </div>
+                  <span class="text-[10px] text-blue-600 font-medium bg-blue-100 px-1.5 py-0.5 rounded shrink-0">I morgen</span>
+                </button>
+              }
+            </div>
           }
 
           <!-- Ukelekser per barn (sammenleggbar, default lukket) — kun man–tors -->
