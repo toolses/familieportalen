@@ -18,6 +18,11 @@ export interface PortalSettings {
   parentLabels: { A: string; B: string };
 }
 
+export interface SelectedCalendar {
+  id: string;
+  color: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SchoolDataService {
   private auth = inject(AuthService);
@@ -37,7 +42,7 @@ export class SchoolDataService {
   readonly baseRotation = signal<BaseRotation | null>(null);
   readonly residencyOverrides = signal<ResidencyOverrides>({});
   readonly activeWeek = signal<{ uke: number; aar: number } | null>(null);
-  readonly googleCalendarId = signal<string | null>(null);
+  readonly sharedCalendars = signal<SelectedCalendar[]>([]);
   readonly sharedConfigLoaded = signal(false);
   readonly manualReminders = signal<ManualReminder[]>([]);
   readonly calendarEvents = signal<ManualCalendarEvent[]>([]);
@@ -298,10 +303,9 @@ export class SchoolDataService {
     // parentLabels no longer used directly, but keep API
   }
 
-  setGoogleCalendarId(id: string | null): void {
-    this.googleCalendarId.set(id);
-    const data = JSON.parse(JSON.stringify({ googleCalendarId: id ?? null }));
-    setDoc(doc(db, 'config', 'shared'), data, { merge: true }).catch((err) =>
+  setSharedCalendars(calendars: SelectedCalendar[]): void {
+    this.sharedCalendars.set(calendars);
+    setDoc(doc(db, 'config', 'shared'), { selectedCalendars: calendars }, { merge: true }).catch((err) =>
       console.error('Firestore shared config write failed:', err)
     );
   }
@@ -316,10 +320,10 @@ export class SchoolDataService {
     this.baseRotation.set(null);
     this.residencyOverrides.set({});
     this.activeWeek.set(null);
-    this.googleCalendarId.set(null);
+    this.sharedCalendars.set([]);
     this.manualReminders.set([]);
     this.calendarEvents.set([]);
-    setDoc(doc(db, 'config', 'shared'), { googleCalendarId: null }, { merge: true }).catch(() => {});
+    setDoc(doc(db, 'config', 'shared'), { selectedCalendars: [] }, { merge: true }).catch(() => {});
     await this.persistToFirestore();
   }
 
@@ -447,9 +451,12 @@ export class SchoolDataService {
           this.sharedConfigLoaded.set(true);
           return;
         }
-        const data = snap.data() as { googleCalendarId?: string | null };
-        if (data.googleCalendarId !== undefined) {
-          this.googleCalendarId.set(data.googleCalendarId);
+        const data = snap.data() as { selectedCalendars?: SelectedCalendar[]; googleCalendarId?: string | null };
+        if (Array.isArray(data.selectedCalendars)) {
+          this.sharedCalendars.set(data.selectedCalendars);
+        } else if (data.googleCalendarId) {
+          // Migrate old single-calendar format
+          this.sharedCalendars.set([{ id: data.googleCalendarId, color: '#4285F4' }]);
         }
         this.sharedConfigLoaded.set(true);
       },
