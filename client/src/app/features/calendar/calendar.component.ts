@@ -633,6 +633,7 @@ export class CalendarComponent {
     const reminders = this.data.manualReminders();
     const calEvents = this.data.calendarEvents();
     const googleEvents = this.google.events();
+    const personalEvents = this.google.personalEvents();
 
     const allTagged: TaggedSchoolEvent[] = [];
     for (const child of children) {
@@ -667,6 +668,8 @@ export class CalendarComponent {
       if (hasCalEvt && dots.length < 3) dots.push('#6366F1');
       const hasGoogle = googleEvents.some((e) => e.date === date);
       if (hasGoogle && dots.length < 3) dots.push('#4285F4');
+      const hasPersonal = personalEvents.some((e) => e.date === date);
+      if (hasPersonal && dots.length < 3) dots.push('#8B5CF6');
 
       cells.push({
         date,
@@ -688,7 +691,7 @@ export class CalendarComponent {
     if (!date) return null;
     const children = this.data.children();
     const plansMap = this.data.plansMap();
-    const googleEvents = this.google.events();
+    const googleEvents = [...this.google.events(), ...this.google.personalEvents()];
     const reminders = this.data.manualReminders();
     const calEvents = this.data.calendarEvents();
 
@@ -731,7 +734,7 @@ export class CalendarComponent {
   calendarDays = computed<CalendarDay[]>(() => {
     const children = this.data.children();
     const plansMap = this.data.plansMap();
-    const googleEvents = this.google.events();
+    const googleEvents = [...this.google.events(), ...this.google.personalEvents()];
     const filterMode = this.filter();
     const reminders = this.data.manualReminders();
     const calEvents = this.data.calendarEvents();
@@ -789,9 +792,9 @@ export class CalendarComponent {
     });
   });
 
-  prevWeek(): void { this.weekOffset.update((o) => o - 1); this.refreshGoogleForWeek(); }
-  nextWeek(): void { this.weekOffset.update((o) => o + 1); this.refreshGoogleForWeek(); }
-  goToToday(): void { this.weekOffset.set(0); this.refreshGoogleForWeek(); }
+  prevWeek(): void { this.weekOffset.update((o) => o - 1); this.refreshGoogleForWeek(); this.refreshPersonalGoogleForWeek(); }
+  nextWeek(): void { this.weekOffset.update((o) => o + 1); this.refreshGoogleForWeek(); this.refreshPersonalGoogleForWeek(); }
+  goToToday(): void { this.weekOffset.set(0); this.refreshGoogleForWeek(); this.refreshPersonalGoogleForWeek(); }
 
   // ── School event editing ───────────────────────────────────
   openEditEvent(event: TaggedSchoolEvent): void { this.editingEvent.set(event); }
@@ -969,6 +972,18 @@ export class CalendarComponent {
     end.setUTCDate(monday.getUTCDate() + 6);
     end.setUTCHours(23, 59, 59, 999);
     this.google.fetchEventsForRange(calId, start, end);
+  }
+
+  private refreshPersonalGoogleForWeek(): void {
+    const calId = this.google.personalSelectedCalendarId();
+    if (!calId) return;
+    const monday = this.viewedMonday();
+    const start = new Date(monday.getTime());
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(monday.getTime());
+    end.setUTCDate(monday.getUTCDate() + 6);
+    end.setUTCHours(23, 59, 59, 999);
+    this.google.fetchPersonalEventsForRange(calId, start, end);
   }
 
   private isWeekendDate(date: string): boolean {

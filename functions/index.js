@@ -49,8 +49,14 @@ app.use('/api/school-plan', schoolPlanRouter);
 const { googleAuthRouter } = await import('./google-calendar/google-auth.routes.js');
 app.use('/api/auth/google', googleAuthRouter);
 
+const { personalAuthRouter } = await import('./google-calendar/personal-auth.routes.js');
+app.use('/api/auth/google/personal', personalAuthRouter);
+
 const { googleCalendarRouter } = await import('./google-calendar/google-calendar.routes.js');
 app.use('/api/calendar', googleCalendarRouter);
+
+const { personalCalendarRouter } = await import('./google-calendar/personal-calendar.routes.js');
+app.use('/api/calendar/personal', personalCalendarRouter);
 
 const { notificationsRouter } = await import('./notifications/notifications.routes.js');
 app.use('/api/notifications', notificationsRouter);

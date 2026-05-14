@@ -1,8 +1,10 @@
-﻿import { Injectable, signal, computed, inject, effect } from '@angular/core';
+import { Injectable, signal, computed, inject, effect } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { doc, getDoc, setDoc, updateDoc, deleteField } from 'firebase/firestore';
 import { AuthService } from './auth.service';
 import { SchoolDataService } from './school-data.service';
+import { firebaseDb as db } from '../../core/firebase';
 
 export interface GoogleCalendarInfo {
   id: string;
@@ -22,9 +24,9 @@ export interface GoogleCalendarEvent {
   allDay: boolean;
   spanStart: string | null;
   spanEnd: string | null;
-  /** Original start time (HH:MM) for multi-day timed events â€” set on every expanded entry. */
+  /** Original start time (HH:MM) for multi-day timed events — set on every expanded entry. */
   spanStartTime: string | null;
-  /** Original end time (HH:MM) for multi-day timed events â€” set on every expanded entry. */
+  /** Original end time (HH:MM) for multi-day timed events — set on every expanded entry. */
   spanEndTime: string | null;
   location: string;
 }
@@ -35,6 +37,7 @@ export class GoogleCalendarService {
   private auth = inject(AuthService);
   private data = inject(SchoolDataService);
 
+  // ── Delt familiekalender ────────────────────────────────────────────────
   readonly calendars = signal<GoogleCalendarInfo[]>([]);
   readonly selectedCalendarId = signal<string | null>(null);
   readonly events = signal<GoogleCalendarEvent[]>([]);
@@ -48,22 +51,29 @@ export class GoogleCalendarService {
     return this.calendars().find((c) => c.id === id) ?? null;
   });
 
-  // No longer needed â€” all users share the same backend token
   readonly needsReconnect = computed(() => false);
 
+  // ── Personlig kalender ──────────────────────────────────────────────────
+  readonly personalConnected = signal(false);
+  readonly personalCalendars = signal<GoogleCalendarInfo[]>([]);
+  readonly personalSelectedCalendarId = signal<string | null>(null);
+  readonly personalEvents = signal<GoogleCalendarEvent[]>([]);
+  readonly personalLoading = signal(false);
+
   constructor() {
-    // Check backend connection status once user is logged in
     effect(() => {
       if (this.auth.isLoggedIn() && !this.auth.loading() && this.data.sharedConfigLoaded()) {
         this.checkStatus();
+        this.checkPersonalStatus();
       }
     });
   }
 
-  /** Call after login to load calendars (kept for backward compat) */
   async initAfterLogin(): Promise<void> {
     await this.checkStatus();
   }
+
+  // ── Delt kalender-metoder ───────────────────────────────────────────────
 
   async checkStatus(): Promise<void> {
     try {
@@ -85,7 +95,6 @@ export class GoogleCalendarService {
     }
   }
 
-  /** Initiate OAuth flow â€” redirects to Google */
   async startConnectFlow(): Promise<void> {
     const res = await firstValueFrom(
       this.http.get<{ url: string }>('/api/auth/google/url')
@@ -93,7 +102,6 @@ export class GoogleCalendarService {
     window.location.href = res.url;
   }
 
-  /** Called from GoogleCallbackComponent after redirect */
   async handleCallback(code: string): Promise<void> {
     await firstValueFrom(
       this.http.post('/api/auth/google/callback', { code })
@@ -114,8 +122,6 @@ export class GoogleCalendarService {
         this.selectedCalendarId.set(persistedId);
         await this.fetchEvents(persistedId);
       } else {
-        // No saved preference — show primary locally but do NOT persist it;
-        // the user must explicitly select a calendar to save a preference.
         const primary = cals.find((c) => c.primary);
         if (primary) {
           this.selectedCalendarId.set(primary.id);
@@ -136,18 +142,8 @@ export class GoogleCalendarService {
 
   async fetchEvents(calendarId: string, startDate?: Date, endDate?: Date): Promise<void> {
     if (!startDate || !endDate) {
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-      monday.setHours(0, 0, 0, 0);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      sunday.setHours(23, 59, 59, 999);
-      startDate = monday;
-      endDate = sunday;
+      ({ startDate, endDate } = this.currentWeekRange());
     }
-
     this.loading.set(true);
     try {
       const items = await firstValueFrom(
@@ -184,8 +180,154 @@ export class GoogleCalendarService {
     this.data.setGoogleCalendarId(null);
   }
 
-  /** No longer needed â€” kept for compat */
   async reconnectCalendar(): Promise<void> {}
+
+  // ── Personlig kalender-metoder ──────────────────────────────────────────
+
+  async checkPersonalStatus(): Promise<void> {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ connected: boolean }>('/api/auth/google/personal/status')
+      );
+      this.personalConnected.set(res.connected);
+      if (res.connected) {
+        const calendarId = await this.loadPersonalCalendarId();
+        if (calendarId) {
+          this.personalSelectedCalendarId.set(calendarId);
+          await this.fetchPersonalEvents(calendarId);
+        } else {
+          await this.fetchPersonalCalendars();
+        }
+      }
+    } catch {
+      this.personalConnected.set(false);
+    }
+  }
+
+  async startPersonalConnectFlow(): Promise<void> {
+    const res = await firstValueFrom(
+      this.http.get<{ url: string }>('/api/auth/google/personal/url')
+    );
+    window.location.href = res.url;
+  }
+
+  async handlePersonalCallback(code: string): Promise<void> {
+    await firstValueFrom(
+      this.http.post('/api/auth/google/personal/callback', { code })
+    );
+    this.personalConnected.set(true);
+  }
+
+  async fetchPersonalCalendars(): Promise<void> {
+    try {
+      const res = await firstValueFrom(
+        this.http.get<{ calendars: GoogleCalendarInfo[] }>('/api/calendar/personal/list')
+      );
+      const cals = res.calendars ?? [];
+      this.personalCalendars.set(cals);
+
+      const persistedId = await this.loadPersonalCalendarId();
+      if (persistedId && cals.some((c) => c.id === persistedId)) {
+        this.personalSelectedCalendarId.set(persistedId);
+        await this.fetchPersonalEvents(persistedId);
+      } else {
+        const primary = cals.find((c) => c.primary);
+        if (primary) {
+          this.personalSelectedCalendarId.set(primary.id);
+          await this.fetchPersonalEvents(primary.id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch personal calendars:', err);
+      this.personalCalendars.set([]);
+    }
+  }
+
+  async selectPersonalCalendar(calendarId: string): Promise<void> {
+    this.personalSelectedCalendarId.set(calendarId);
+    await this.savePersonalCalendarId(calendarId);
+    await this.fetchPersonalEvents(calendarId);
+  }
+
+  async fetchPersonalEvents(calendarId: string, startDate?: Date, endDate?: Date): Promise<void> {
+    if (!startDate || !endDate) {
+      ({ startDate, endDate } = this.currentWeekRange());
+    }
+    this.personalLoading.set(true);
+    try {
+      const items = await firstValueFrom(
+        this.http.get<any[]>(`/api/calendar/personal/events/${encodeURIComponent(calendarId)}`, {
+          params: { timeMin: startDate.toISOString(), timeMax: endDate.toISOString() },
+        })
+      );
+      this.personalEvents.set((items ?? []).flatMap((item) => this.expandEvent(item)));
+    } catch (err) {
+      console.error('Failed to fetch personal events:', err);
+      this.personalEvents.set([]);
+    } finally {
+      this.personalLoading.set(false);
+    }
+  }
+
+  async fetchPersonalEventsForRange(calendarId: string, startDate?: Date, endDate?: Date): Promise<void> {
+    await this.fetchPersonalEvents(calendarId, startDate, endDate);
+  }
+
+  async disconnectPersonal(): Promise<void> {
+    try {
+      await firstValueFrom(this.http.post('/api/auth/google/personal/disconnect', {}));
+    } catch { /* ignore */ }
+    await this.clearPersonalCalendarId();
+    this.personalCalendars.set([]);
+    this.personalSelectedCalendarId.set(null);
+    this.personalEvents.set([]);
+    this.personalConnected.set(false);
+  }
+
+  // ── Persistering av personlig kalender-ID i users/{uid} ────────────────
+
+  private async loadPersonalCalendarId(): Promise<string | null> {
+    const uid = this.auth.user()?.uid;
+    if (!uid) return null;
+    try {
+      const snap = await getDoc(doc(db, 'users', uid));
+      return snap.data()?.['personalCalendarId'] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async savePersonalCalendarId(id: string): Promise<void> {
+    const uid = this.auth.user()?.uid;
+    if (!uid) return;
+    try {
+      await setDoc(doc(db, 'users', uid), { personalCalendarId: id }, { merge: true });
+    } catch (err) {
+      console.error('Failed to save personal calendar ID:', err);
+    }
+  }
+
+  private async clearPersonalCalendarId(): Promise<void> {
+    const uid = this.auth.user()?.uid;
+    if (!uid) return;
+    try {
+      await updateDoc(doc(db, 'users', uid), { personalCalendarId: deleteField() });
+    } catch { /* ignore */ }
+  }
+
+  // ── Felles hjelpe-metoder ───────────────────────────────────────────────
+
+  private currentWeekRange(): { startDate: Date; endDate: Date } {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return { startDate: monday, endDate: sunday };
+  }
 
   private expandEvent(item: any): GoogleCalendarEvent[] {
     const isAllDay = !!item.start?.date;
@@ -241,7 +383,6 @@ export class GoogleCalendarService {
       }];
     }
 
-    // Multi-day timed event â€” expand across every day
     const current = new Date(startDate + 'T00:00:00');
     const endLocal = new Date(endDate + 'T00:00:00');
     const events: GoogleCalendarEvent[] = [];
@@ -272,4 +413,3 @@ export class GoogleCalendarService {
     return events;
   }
 }
-
