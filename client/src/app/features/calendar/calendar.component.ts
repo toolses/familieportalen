@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { SlicePipe } from '@angular/common';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { ResidencyService } from '../../shared/services/residency.service';
 import { GoogleCalendarService, GoogleCalendarEvent } from '../../shared/services/google-calendar.service';
@@ -35,7 +36,7 @@ interface CalendarDay {
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [SwipeDirective, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
+  imports: [SlicePipe, SwipeDirective, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
   template: `
     <div class="px-4 pt-2 pb-4 space-y-3" appSwipe
          (swipeLeft)="viewMode() === 'week' ? nextWeek() : nextMonth()"
@@ -287,7 +288,7 @@ interface CalendarDay {
             <!-- Google Calendar hendelser -->
             @for (event of day.googleEvents; track event.id) {
               <div class="flex gap-3 items-start bg-white border border-gray-200 rounded-xl p-3 shadow-xs"
-                   style="border-left: 3px solid #4285F4;">
+                   [style.border-left]="'3px solid ' + event.color">
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2">
                     <svg width="12" height="12" viewBox="0 0 24 24" class="shrink-0">
@@ -300,7 +301,15 @@ interface CalendarDay {
                   </div>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
                   @if (event.description) {
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                    @let expanded = isExpanded(event.id + event.date);
+                    @let long = event.description.length > 200;
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ long && !expanded ? (event.description | slice:0:200) + '…' : event.description }}</p>
+                    @if (long) {
+                      <button (click)="toggleExpand(event.id + event.date)"
+                              class="text-xs text-blue-500 font-medium mt-0.5">
+                        {{ expanded ? 'Vis mindre' : 'Vis mer' }}
+                      </button>
+                    }
                   }
                   @if (event.location) {
                     <p class="text-xs text-gray-400">{{ event.location }}</p>
@@ -437,7 +446,7 @@ interface CalendarDay {
             <!-- Google Calendar hendelser -->
             @for (event of day.googleEvents; track event.id) {
               <div class="flex gap-3 items-start bg-white border border-gray-200 rounded-xl p-3 shadow-xs"
-                   style="border-left: 3px solid #4285F4;">
+                   [style.border-left]="'3px solid ' + event.color">
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2">
                     <svg width="12" height="12" viewBox="0 0 24 24" class="shrink-0">
@@ -450,7 +459,15 @@ interface CalendarDay {
                   </div>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
                   @if (event.description) {
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                    @let expanded = isExpanded(event.id + event.date);
+                    @let long = event.description.length > 200;
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ long && !expanded ? (event.description | slice:0:200) + '…' : event.description }}</p>
+                    @if (long) {
+                      <button (click)="toggleExpand(event.id + event.date)"
+                              class="text-xs text-blue-500 font-medium mt-0.5">
+                        {{ expanded ? 'Vis mindre' : 'Vis mer' }}
+                      </button>
+                    }
                   }
                   @if (event.location) {
                     <p class="text-xs text-gray-400">{{ event.location }}</p>
@@ -579,6 +596,20 @@ export class CalendarComponent {
   weekOffset = signal(0);
   monthOffset = signal(0);
 
+  private expandedEventIds = signal(new Set<string>());
+
+  isExpanded(key: string): boolean {
+    return this.expandedEventIds().has(key);
+  }
+
+  toggleExpand(key: string): void {
+    this.expandedEventIds.update((s) => {
+      const next = new Set(s);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
   private viewedMonday = computed(() => {
     const today = new Date(this.today + 'T00:00:00Z');
     const dayOfWeek = today.getUTCDay() || 7;
@@ -666,10 +697,13 @@ export class CalendarComponent {
       if (hasReminder && dots.length < 3) dots.push('#F59E0B');
       const hasCalEvt = calEvents.some((e) => this.calendarEventOccursOnDate(e, date));
       if (hasCalEvt && dots.length < 3) dots.push('#6366F1');
-      const hasGoogle = googleEvents.some((e) => e.date === date);
-      if (hasGoogle && dots.length < 3) dots.push('#4285F4');
-      const hasPersonal = personalEvents.some((e) => e.date === date);
-      if (hasPersonal && dots.length < 3) dots.push('#8B5CF6');
+      const seenColors = new Set<string>();
+      for (const e of [...googleEvents, ...personalEvents]) {
+        if (e.date === date && !seenColors.has(e.color) && dots.length < 3) {
+          dots.push(e.color);
+          seenColors.add(e.color);
+        }
+      }
 
       cells.push({
         date,

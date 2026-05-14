@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { GoogleCalendarService } from '../../shared/services/google-calendar.service';
+import { CalendarPickerSheetComponent } from './calendar-picker-sheet.component';
 import { ResidencyPlannerComponent } from './residency-planner.component';
 import { Child } from '../school-plan/models/school-plan.models';
 import { NotificationService } from '../../shared/services/notification.service';
@@ -16,7 +17,7 @@ type ConfirmMode = 'delete-child' | 'clear-all' | 'delete-member';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [FormsModule, ResidencyPlannerComponent],
+  imports: [FormsModule, ResidencyPlannerComponent, CalendarPickerSheetComponent],
   template: `
     <div class="px-4 pt-4 pb-4 space-y-6">
       <h2 class="text-xl font-bold text-gray-800">Innstillinger</h2>
@@ -53,23 +54,22 @@ type ConfirmMode = 'delete-child' | 'clear-all' | 'delete-member';
             Familiekalender tilkoblet – delt med alle
           </div>
 
-          @if (google.calendars().length > 0) {
-            <div class="space-y-2">
-              <label class="block text-sm font-medium text-gray-700">Velg familiekalender</label>
-              <select [ngModel]="google.selectedCalendarId()"
-                      (ngModelChange)="google.selectCalendar($event)"
-                      class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white">
-                @for (cal of google.calendars(); track cal.id) {
-                  <option [value]="cal.id">{{ cal.summary }}</option>
-                }
-              </select>
+          @if (google.selectedCalendars().length > 0) {
+            <div class="flex flex-wrap gap-2">
+              @for (sel of google.selectedCalendars(); track sel.id) {
+                @let cal = findSharedCal(sel.id);
+                <span class="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full text-white"
+                      [style.background]="sel.color">
+                  {{ cal?.summary ?? sel.id }}
+                </span>
+              }
             </div>
-          } @else {
-            <button (click)="loadCalendars()"
-                    class="text-sm text-blue-600 font-medium">
-              Last inn kalenderliste
-            </button>
           }
+
+          <button (click)="openSharedCalendarPicker()"
+                  class="text-sm text-blue-600 font-medium">
+            Velg kalendere
+          </button>
 
           <button (click)="disconnectCalendar()"
                   class="text-sm text-red-500 font-medium">
@@ -203,23 +203,22 @@ type ConfirmMode = 'delete-child' | 'clear-all' | 'delete-member';
             Min Google Kalender tilkoblet – kun synlig for deg
           </div>
 
-          @if (google.personalCalendars().length > 0) {
-            <div class="space-y-2">
-              <label class="block text-sm font-medium text-gray-700">Velg kalender</label>
-              <select [ngModel]="google.personalSelectedCalendarId()"
-                      (ngModelChange)="google.selectPersonalCalendar($event)"
-                      class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white">
-                @for (cal of google.personalCalendars(); track cal.id) {
-                  <option [value]="cal.id">{{ cal.summary }}</option>
-                }
-              </select>
+          @if (google.personalSelectedCalendars().length > 0) {
+            <div class="flex flex-wrap gap-2">
+              @for (sel of google.personalSelectedCalendars(); track sel.id) {
+                @let cal = findPersonalCal(sel.id);
+                <span class="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full text-white"
+                      [style.background]="sel.color">
+                  {{ cal?.summary ?? sel.id }}
+                </span>
+              }
             </div>
-          } @else {
-            <button (click)="loadPersonalCalendars()"
-                    class="text-sm text-blue-600 font-medium">
-              Last inn kalenderliste
-            </button>
           }
+
+          <button (click)="openPersonalCalendarPicker()"
+                  class="text-sm text-blue-600 font-medium">
+            Velg kalendere
+          </button>
 
           <button (click)="disconnectPersonalCalendar()"
                   class="text-sm text-red-500 font-medium">
@@ -551,6 +550,26 @@ type ConfirmMode = 'delete-child' | 'clear-all' | 'delete-member';
       </div>
     }
 
+    <!-- Felles kalender-picker -->
+    @if (showSharedCalendarPicker()) {
+      <app-calendar-picker-sheet
+        title="Familiekalendere"
+        [calendars]="google.calendars()"
+        [selected]="google.selectedCalendars()"
+        (selectionChange)="onSharedCalendarSelectionChange($event)"
+        (closed)="showSharedCalendarPicker.set(false)" />
+    }
+
+    <!-- Personlig kalender-picker -->
+    @if (showPersonalCalendarPicker()) {
+      <app-calendar-picker-sheet
+        title="Mine kalendere"
+        [calendars]="google.personalCalendars()"
+        [selected]="google.personalSelectedCalendars()"
+        (selectionChange)="onPersonalCalendarSelectionChange($event)"
+        (closed)="showPersonalCalendarPicker.set(false)" />
+    }
+
     <!-- Bli med i husstand-sheet -->
     @if (showJoinSheet()) {
       <div class="fixed inset-0 z-[70] flex flex-col justify-end">
@@ -739,6 +758,8 @@ export class SettingsComponent {
   saved = signal(false);
   googleConnectError = signal<string | null>(null);
   personalConnectError = signal<string | null>(null);
+  showSharedCalendarPicker = signal(false);
+  showPersonalCalendarPicker = signal(false);
   pushLoading = signal(false);
   testPushLoading = signal(false);
   testPushResult = signal<{ ok: boolean; message: string } | null>(null);
@@ -843,10 +864,6 @@ export class SettingsComponent {
     this.flashSaved();
   }
 
-  async loadCalendars() {
-    await this.google.fetchCalendars();
-  }
-
   async connectCalendar() {
     this.googleConnectError.set(null);
     try {
@@ -860,8 +877,17 @@ export class SettingsComponent {
     this.google.disconnect();
   }
 
-  async loadPersonalCalendars() {
-    await this.google.fetchPersonalCalendars();
+  async openSharedCalendarPicker() {
+    if (this.google.calendars().length === 0) await this.google.fetchCalendars();
+    this.showSharedCalendarPicker.set(true);
+  }
+
+  async onSharedCalendarSelectionChange(selected: import('../../shared/services/google-calendar.service').SelectedCalendar[]) {
+    await this.google.setSharedCalendars(selected);
+  }
+
+  findSharedCal(id: string) {
+    return this.google.calendars().find((c) => c.id === id);
   }
 
   async connectPersonalCalendar() {
@@ -875,6 +901,19 @@ export class SettingsComponent {
 
   disconnectPersonalCalendar() {
     this.google.disconnectPersonal();
+  }
+
+  async openPersonalCalendarPicker() {
+    if (this.google.personalCalendars().length === 0) await this.google.fetchPersonalCalendars();
+    this.showPersonalCalendarPicker.set(true);
+  }
+
+  async onPersonalCalendarSelectionChange(selected: import('../../shared/services/google-calendar.service').SelectedCalendar[]) {
+    await this.google.setPersonalCalendars(selected);
+  }
+
+  findPersonalCal(id: string) {
+    return this.google.personalCalendars().find((c) => c.id === id);
   }
 
   async enablePushNotifications() {
