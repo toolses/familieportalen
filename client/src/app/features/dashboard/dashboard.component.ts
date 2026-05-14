@@ -1,5 +1,4 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { SlicePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { ResidencyService } from '../../shared/services/residency.service';
@@ -29,7 +28,7 @@ interface ChildUkelekser {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [SlicePipe, SwipeDirective, RouterLink, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
+  imports: [SwipeDirective, RouterLink, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
   template: `
     @if (data.children().length === 0) {
       <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -150,13 +149,7 @@ interface ChildUkelekser {
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     @if (event.description) {
-                      @let evtExp = isExpanded(event.childId + event.date + event.title);
-                      @let evtLong = event.description.length > 150;
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
-                      @if (evtLong) {
-                        <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
-                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                      }
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
@@ -174,13 +167,7 @@ interface ChildUkelekser {
                       }
                     </div>
                     @if (reminder.description) {
-                      @let remExp = isExpanded('rem-' + reminder.id);
-                      @let remLong = reminder.description.length > 150;
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ remLong && !remExp ? (reminder.description | slice:0:150) + '…' : reminder.description }}</p>
-                      @if (remLong) {
-                        <span (click)="$event.stopPropagation(); toggleExpand('rem-' + reminder.id)"
-                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ remExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                      }
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(reminder.assignedTo)">
                       {{ getAssignedLabel(reminder.assignedTo) }}
@@ -211,15 +198,7 @@ interface ChildUkelekser {
                     </div>
                     <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
                     @if (event.description) {
-                      @let expanded = isExpanded(event.id + event.date);
-                      @let long = event.description.length > 150;
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ long && !expanded ? (event.description | slice:0:200) + '…' : event.description }}</p>
-                      @if (long) {
-                        <button (click)="toggleExpand(event.id + event.date)"
-                                class="text-xs text-blue-500 font-medium mt-0.5">
-                          {{ expanded ? 'Vis mindre' : 'Vis mer' }}
-                        </button>
-                      }
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                     }
                     @if (event.location) {
                       <p class="text-xs text-gray-400">{{ event.location }}</p>
@@ -241,13 +220,7 @@ interface ChildUkelekser {
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     <p class="text-xs text-gray-400 mt-0.5">{{ formatManualEventTimeLabel(event) }}</p>
                     @if (event.description) {
-                      @let ceExp = isExpanded('ce-' + event.id);
-                      @let ceLong = event.description.length > 150;
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ ceLong && !ceExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
-                      @if (ceLong) {
-                        <span (click)="$event.stopPropagation(); toggleExpand('ce-' + event.id)"
-                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ ceExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                      }
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(event.assignedTo)">
                       {{ getAssignedLabel(event.assignedTo) }}
@@ -269,13 +242,7 @@ interface ChildUkelekser {
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     @if (event.description) {
-                      @let evtExp = isExpanded(event.childId + event.date + event.title);
-                      @let evtLong = event.description.length > 150;
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
-                      @if (evtLong) {
-                        <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
-                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                      }
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
@@ -313,13 +280,7 @@ interface ChildUkelekser {
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     @if (event.description) {
-                      @let evtExp = isExpanded(event.childId + event.date + event.title);
-                      @let evtLong = event.description.length > 150;
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
-                      @if (evtLong) {
-                        <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
-                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                      }
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
@@ -337,13 +298,7 @@ interface ChildUkelekser {
                       }
                     </div>
                     @if (reminder.description) {
-                      @let remExp = isExpanded('rem-' + reminder.id);
-                      @let remLong = reminder.description.length > 150;
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ remLong && !remExp ? (reminder.description | slice:0:150) + '…' : reminder.description }}</p>
-                      @if (remLong) {
-                        <span (click)="$event.stopPropagation(); toggleExpand('rem-' + reminder.id)"
-                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ remExp ? 'Vis mindre' : 'Vis mer' }}</span>
-                      }
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(reminder.assignedTo)">
                       {{ getAssignedLabel(reminder.assignedTo) }}
@@ -432,7 +387,6 @@ export class DashboardComponent {
 
   private ukelekseOpenMap = signal<Record<string, boolean>>({});
   private dayOffset = signal(0);
-  private expandedEventIds = signal(new Set<string>());
   showOverridePanel = signal(false);
   editingTaggedEvent = signal<TaggedEvent | null>(null);
   editingReminder = signal<ManualReminder | undefined>(undefined);
@@ -745,18 +699,6 @@ export class DashboardComponent {
     const intervalDays = event.recurrence.type === 'weekly' ? 7 : 14;
     const diffDays = Math.round((checkMs - startMs) / (24 * 60 * 60 * 1000));
     return diffDays % intervalDays <= durationDays;
-  }
-
-  isExpanded(key: string): boolean {
-    return this.expandedEventIds().has(key);
-  }
-
-  toggleExpand(key: string): void {
-    this.expandedEventIds.update((s) => {
-      const next = new Set(s);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
   }
 
   formatEventTimeLabel(event: GoogleCalendarEvent): string {
