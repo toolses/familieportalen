@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { SlicePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { SchoolDataService } from '../../shared/services/school-data.service';
 import { ResidencyService } from '../../shared/services/residency.service';
@@ -28,7 +29,7 @@ interface ChildUkelekser {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [SwipeDirective, RouterLink, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
+  imports: [SlicePipe, SwipeDirective, RouterLink, EventEditSheetComponent, ReminderSheetComponent, CalendarEventSheetComponent, HomeworkItemComponent],
   template: `
     @if (data.children().length === 0) {
       <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -185,7 +186,7 @@ interface ChildUkelekser {
               <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">Google Kalender</h3>
               @for (event of todayGoogleEvents(); track event.id) {
                 <div class="flex gap-3 items-start bg-white border border-gray-200 rounded-xl p-3 shadow-xs"
-                     style="border-left: 3px solid #4285F4;">
+                     [style.border-left]="'3px solid ' + event.color">
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
                       <svg width="12" height="12" viewBox="0 0 24 24" class="shrink-0">
@@ -196,12 +197,17 @@ interface ChildUkelekser {
                       </svg>
                       <span class="font-medium text-gray-800 text-sm">{{ event.summary }}</span>
                     </div>
-                    @if (event.startTime) {
-                      <p class="text-xs text-gray-400 mt-0.5">{{ event.startTime }}@if (event.endTime) { – {{ event.endTime }}}</p>
-                    } @else if (event.spanStart && event.spanEnd && event.spanStart !== event.spanEnd) {
-                      <p class="text-xs text-gray-400 mt-0.5">{{ formatSpanLabel(event) }}</p>
-                    } @else {
-                      <p class="text-xs text-gray-400 mt-0.5">Hele dagen</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
+                    @if (event.description) {
+                      @let expanded = isExpanded(event.id + event.date);
+                      @let long = event.description.length > 200;
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ long && !expanded ? (event.description | slice:0:200) + '…' : event.description }}</p>
+                      @if (long) {
+                        <button (click)="toggleExpand(event.id + event.date)"
+                                class="text-xs text-blue-500 font-medium mt-0.5">
+                          {{ expanded ? 'Vis mindre' : 'Vis mer' }}
+                        </button>
+                      }
                     }
                     @if (event.location) {
                       <p class="text-xs text-gray-400">{{ event.location }}</p>
@@ -425,6 +431,7 @@ export class DashboardComponent {
 
   private ukelekseOpenMap = signal<Record<string, boolean>>({});
   private dayOffset = signal(0);
+  private expandedEventIds = signal(new Set<string>());
   showOverridePanel = signal(false);
   editingTaggedEvent = signal<TaggedEvent | null>(null);
   editingReminder = signal<ManualReminder | undefined>(undefined);
@@ -483,7 +490,7 @@ export class DashboardComponent {
   }
 
   todayGoogleEvents = computed<GoogleCalendarEvent[]>(() => {
-    return this.google.events().filter((e) => e.date === this.selectedDate());
+    return [...this.google.events(), ...this.google.personalEvents()].filter((e) => e.date === this.selectedDate());
   });
 
   allTodayEvents = computed<TaggedEvent[]>(() => {
@@ -739,18 +746,28 @@ export class DashboardComponent {
     return diffDays % intervalDays <= durationDays;
   }
 
-  formatTime(dateTime: string): string {
-    try {
-      return new Date(dateTime).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
-    } catch { return ''; }
+  isExpanded(key: string): boolean {
+    return this.expandedEventIds().has(key);
   }
 
-  formatSpanLabel(event: any): string {
-    const gs = event as import('../../shared/services/google-calendar.service').GoogleCalendarEvent;
-    const start = gs.spanStartTime ? gs.spanStart + ' ' + gs.spanStartTime : gs.spanStart ?? '';
-    const end = gs.spanEndTime ? gs.spanEnd + ' ' + gs.spanEndTime : gs.spanEnd ?? '';
-    const fmt = (s: string) => { const [d, t] = s.split(' '); return (d ? formatDateShort(d) : '') + (t ? ' ' + t : ''); };
-    return fmt(start) + (end ? ' – ' + fmt(end) : '');
+  toggleExpand(key: string): void {
+    this.expandedEventIds.update((s) => {
+      const next = new Set(s);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  formatEventTimeLabel(event: GoogleCalendarEvent): string {
+    if (event.spanStart && event.spanEnd && event.spanStart !== event.spanEnd && event.spanStartTime) {
+      const start = `${formatDateShort(event.spanStart)} ${event.spanStartTime}`;
+      const end = event.spanEndTime ? ` – ${formatDateShort(event.spanEnd)} ${event.spanEndTime}` : '';
+      return start + end;
+    }
+    if (event.startTime) {
+      return `${event.startTime}${event.endTime ? ' – ' + event.endTime : ''}`;
+    }
+    return 'Hele dagen';
   }
 
   private capitalize(s: string): string {
