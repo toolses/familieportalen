@@ -206,7 +206,13 @@ interface CalendarDay {
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     @if (event.description) {
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                      @let evtExp = isExpanded(event.childId + event.date + event.title);
+                      @let evtLong = event.description.length > 150;
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
+                      @if (evtLong) {
+                        <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
+                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
+                      }
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
@@ -228,7 +234,13 @@ interface CalendarDay {
                     }
                   </div>
                   @if (reminder.description) {
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
+                    @let remExp = isExpanded('rem-' + reminder.id);
+                    @let remLong = reminder.description.length > 150;
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ remLong && !remExp ? (reminder.description | slice:0:150) + '…' : reminder.description }}</p>
+                    @if (remLong) {
+                      <span (click)="$event.stopPropagation(); toggleExpand('rem-' + reminder.id)"
+                            class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ remExp ? 'Vis mindre' : 'Vis mer' }}</span>
+                    }
                   }
                   <div class="flex items-center gap-2 mt-1">
                     <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(reminder.assignedTo)">
@@ -268,7 +280,13 @@ interface CalendarDay {
                   <span class="font-medium text-gray-800 text-sm">{{ item.event.title }}</span>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatManualEventTimeLabel(item.event) }}</p>
                   @if (item.event.description) {
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ item.event.description }}</p>
+                    @let ceExp = isExpanded('ce-' + item.event.id);
+                    @let ceLong = item.event.description.length > 150;
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ ceLong && !ceExp ? (item.event.description | slice:0:150) + '…' : item.event.description }}</p>
+                    @if (ceLong) {
+                      <span (click)="$event.stopPropagation(); toggleExpand('ce-' + item.event.id)"
+                            class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ ceExp ? 'Vis mindre' : 'Vis mer' }}</span>
+                    }
                   }
                   <div class="flex items-center gap-2 mt-1">
                     <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(item.event.assignedTo)">
@@ -302,7 +320,7 @@ interface CalendarDay {
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
                   @if (event.description) {
                     @let expanded = isExpanded(event.id + event.date);
-                    @let long = event.description.length > 200;
+                    @let long = event.description.length > 150;
                     <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ long && !expanded ? (event.description | slice:0:200) + '…' : event.description }}</p>
                     @if (long) {
                       <button (click)="toggleExpand(event.id + event.date)"
@@ -364,7 +382,13 @@ interface CalendarDay {
                   <div class="flex-1 min-w-0">
                     <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
                     @if (event.description) {
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                      @let evtExp = isExpanded(event.childId + event.date + event.title);
+                      @let evtLong = event.description.length > 150;
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ evtLong && !evtExp ? (event.description | slice:0:150) + '…' : event.description }}</p>
+                      @if (evtLong) {
+                        <span (click)="$event.stopPropagation(); toggleExpand(event.childId + event.date + event.title)"
+                              class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ evtExp ? 'Vis mindre' : 'Vis mer' }}</span>
+                      }
                     }
                     <p class="text-[10px] font-semibold mt-1" [style.color]="event.childColor">{{ event.childName }}</p>
                   </div>
@@ -386,7 +410,13 @@ interface CalendarDay {
                     }
                   </div>
                   @if (reminder.description) {
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ reminder.description }}</p>
+                    @let remExp = isExpanded('rem-' + reminder.id);
+                    @let remLong = reminder.description.length > 150;
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ remLong && !remExp ? (reminder.description | slice:0:150) + '…' : reminder.description }}</p>
+                    @if (remLong) {
+                      <span (click)="$event.stopPropagation(); toggleExpand('rem-' + reminder.id)"
+                            class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ remExp ? 'Vis mindre' : 'Vis mer' }}</span>
+                    }
                   }
                   <div class="flex items-center gap-2 mt-1">
                     <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(reminder.assignedTo)">
@@ -426,7 +456,13 @@ interface CalendarDay {
                   <span class="font-medium text-gray-800 text-sm">{{ item.event.title }}</span>
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatManualEventTimeLabel(item.event) }}</p>
                   @if (item.event.description) {
-                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ item.event.description }}</p>
+                    @let ceExp = isExpanded('ce-' + item.event.id);
+                    @let ceLong = item.event.description.length > 150;
+                    <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ ceLong && !ceExp ? (item.event.description | slice:0:150) + '…' : item.event.description }}</p>
+                    @if (ceLong) {
+                      <span (click)="$event.stopPropagation(); toggleExpand('ce-' + item.event.id)"
+                            class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ ceExp ? 'Vis mindre' : 'Vis mer' }}</span>
+                    }
                   }
                   <div class="flex items-center gap-2 mt-1">
                     <p class="text-[10px] font-semibold" [style.color]="getAssignedColor(item.event.assignedTo)">
@@ -460,7 +496,7 @@ interface CalendarDay {
                   <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
                   @if (event.description) {
                     @let expanded = isExpanded(event.id + event.date);
-                    @let long = event.description.length > 200;
+                    @let long = event.description.length > 150;
                     <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ long && !expanded ? (event.description | slice:0:200) + '…' : event.description }}</p>
                     @if (long) {
                       <button (click)="toggleExpand(event.id + event.date)"
