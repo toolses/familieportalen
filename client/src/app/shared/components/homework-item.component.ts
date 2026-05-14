@@ -1,9 +1,11 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
+import { SlicePipe } from '@angular/common';
 import { SchoolEvent } from '../../features/school-plan/models/school-plan.models';
 
 @Component({
   selector: 'app-homework-item',
   standalone: true,
+  imports: [SlicePipe],
   host: { class: 'block' },
   template: `
     <button
@@ -31,10 +33,16 @@ import { SchoolEvent } from '../../features/school-plan/models/school-plan.model
           {{ event().title }}
         </span>
         @if (event().description) {
+          @let desc = event().description ?? '';
+          @let isLong = desc.length > 150;
           <p class="text-sm mt-0.5 whitespace-pre-wrap"
              [class]="event().completed ? 'text-gray-300' : 'text-gray-500'">
-            {{ event().description }}
+            {{ isLong && !descExpanded() ? (desc | slice:0:150) + '…' : desc }}
           </p>
+          @if (isLong) {
+            <span (click)="$event.stopPropagation(); descExpanded.set(!descExpanded())"
+                  class="text-xs text-blue-500 font-medium mt-0.5 cursor-pointer">{{ descExpanded() ? 'Vis mindre' : 'Vis mer' }}</span>
+          }
         }
         @if (childName()) {
           <p class="text-[10px] font-semibold mt-1" [style.color]="childColor() ?? '#6B7280'">
@@ -59,5 +67,5 @@ export class HomeworkItemComponent {
   childColor = input<string | null>(null);
   subtle = input<boolean>(false);
   edit = output<void>();
-
+  descExpanded = signal(false);
 }
