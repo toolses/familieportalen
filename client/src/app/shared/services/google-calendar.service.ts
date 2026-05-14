@@ -6,7 +6,7 @@ import { AuthService } from './auth.service';
 import { SchoolDataService, SelectedCalendar } from './school-data.service';
 import { firebaseDb as db } from '../../core/firebase';
 
-export { SelectedCalendar } from './school-data.service';
+export type { SelectedCalendar } from './school-data.service';
 
 export interface GoogleCalendarInfo {
   id: string;
@@ -49,6 +49,7 @@ export class GoogleCalendarService {
 
   // Kept for backward compat with calendar component
   readonly selectedCalendarId = computed(() => this.selectedCalendars()[0]?.id ?? null);
+  readonly personalSelectedCalendarId = computed(() => this.personalSelectedCalendars()[0]?.id ?? null);
 
   readonly needsReconnect = computed(() => false);
 
