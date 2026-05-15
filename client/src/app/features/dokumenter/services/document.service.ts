@@ -5,6 +5,7 @@ import {
   onSnapshot,
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   orderBy,
   query,
@@ -133,6 +134,15 @@ export class DocumentService {
         }
       },
     );
+  }
+
+  async updateDocument(
+    id: string,
+    changes: { title: string; category: DocumentCategory; assignedTo: AssignedTo[] },
+  ): Promise<void> {
+    const householdId = this.household.householdId();
+    if (!householdId) return;
+    await updateDoc(doc(db, `households/${householdId}/documents/${id}`), changes);
   }
 
   async deleteDocument(document: ArchiveDocument): Promise<void> {
