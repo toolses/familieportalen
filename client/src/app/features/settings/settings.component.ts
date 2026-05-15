@@ -66,15 +66,16 @@ type ConfirmMode = 'delete-child' | 'clear-all' | 'delete-member';
             </div>
           }
 
-          <button (click)="openSharedCalendarPicker()"
-                  class="text-sm text-blue-600 font-medium">
-            Velg kalendere
-          </button>
-
-          <button (click)="disconnectCalendar()"
-                  class="text-sm text-red-500 font-medium">
-            Koble fra kalender
-          </button>
+          <div class="flex items-center justify-between border-t border-gray-100 pt-3">
+            <button (click)="openSharedCalendarPicker()"
+                    class="text-sm text-blue-600 font-medium">
+              Velg kalendere
+            </button>
+            <button (click)="disconnectCalendar()"
+                    class="text-sm text-red-500 font-medium">
+              Koble fra kalender
+            </button>
+          </div>
         } @else {
           <p class="text-sm text-gray-500">Koble til én gang – alle familiemedlemmer ser hendelsene automatisk.</p>
           <button (click)="connectCalendar()"
@@ -215,15 +216,16 @@ type ConfirmMode = 'delete-child' | 'clear-all' | 'delete-member';
             </div>
           }
 
-          <button (click)="openPersonalCalendarPicker()"
-                  class="text-sm text-blue-600 font-medium">
-            Velg kalendere
-          </button>
-
-          <button (click)="disconnectPersonalCalendar()"
-                  class="text-sm text-red-500 font-medium">
-            Koble fra min kalender
-          </button>
+          <div class="flex items-center justify-between border-t border-gray-100 pt-3">
+            <button (click)="openPersonalCalendarPicker()"
+                    class="text-sm text-blue-600 font-medium">
+              Velg kalendere
+            </button>
+            <button (click)="disconnectPersonalCalendar()"
+                    class="text-sm text-red-500 font-medium">
+              Koble fra min kalender
+            </button>
+          </div>
         } @else {
           <p class="text-sm text-gray-500">Koble til din personlige Google Kalender. Hendelsene er kun synlige for deg.</p>
           <button (click)="connectPersonalCalendar()"
