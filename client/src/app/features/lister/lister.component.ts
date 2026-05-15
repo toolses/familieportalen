@@ -42,19 +42,19 @@ import { ListService, AppList } from '../../shared/services/list.service';
       <!-- Pakkelister -->
       <section>
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Våre Pakkelister</h3>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Våre Lister</h3>
           <button (click)="openNewDialog()"
                   class="text-sm font-medium text-blue-600 flex items-center gap-1 active:scale-[0.95] transition-transform">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Ny pakkeliste
+            Ny liste
           </button>
         </div>
 
         @if (pakkelister().length === 0) {
           <div class="flex flex-col items-center py-8 text-center text-gray-400">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-            <p class="text-sm">Ingen pakkelister ennå</p>
-            <p class="text-xs mt-1">Trykk "+ Ny pakkeliste" for å komme i gang</p>
+            <p class="text-sm">Ingen lister ennå</p>
+            <p class="text-xs mt-1">Trykk "+ Ny liste" for å komme i gang</p>
           </div>
         } @else {
           <div class="space-y-2">
@@ -82,17 +82,17 @@ import { ListService, AppList } from '../../shared/services/list.service';
       </section>
     </div>
 
-    <!-- Ny pakkeliste dialog -->
+    <!-- Ny liste dialog -->
     @if (showDialog()) {
       <div class="fixed inset-0 bg-black/40 z-55 flex items-end justify-center"
            (click)="closeDialog()">
         <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-6 pb-10 shadow-2xl"
              (click)="$event.stopPropagation()">
           <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
-          <h3 class="text-lg font-bold text-gray-800 mb-4">Ny pakkeliste</h3>
+          <h3 class="text-lg font-bold text-gray-800 mb-4">Ny liste</h3>
           <input
             type="text"
-            placeholder="Navn på pakkelisten..."
+            placeholder="Navn på listen..."
             [value]="newTitle()"
             (input)="newTitle.set($any($event.target).value)"
             (keydown.enter)="createPakkeliste()"

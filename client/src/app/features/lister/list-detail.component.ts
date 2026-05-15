@@ -1,6 +1,11 @@
 import { Component, computed, inject, signal, effect } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ListService, AppList, ListItem } from '../../shared/services/list.service';
+import { ListService, AppList, ListItem, AssignedTo } from '../../shared/services/list.service';
+import { SchoolDataService } from '../../shared/services/school-data.service';
+
+type AssignedToOption =
+  | { type: 'parent'; role: 'Mamma' | 'Pappa' }
+  | { type: 'child'; childId: string };
 
 @Component({
   selector: 'app-list-detail',
@@ -71,6 +76,20 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
               }
               <span class="flex-1 text-sm leading-snug"
                     [class]="pendingIds().has(item.id) ? 'text-gray-400 line-through' : 'text-gray-800'">{{ item.text }}</span>
+              <!-- Person-tagger -->
+              <button (click)="openTagEditor(item)"
+                      class="flex items-center gap-0.5 shrink-0 active:scale-[0.9] transition-all">
+                @if (item.assignedTo?.length) {
+                  @for (tag of item.assignedTo; track $index) {
+                    <span class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
+                          [style.background]="getTagColor(tag)">
+                      {{ getTagLabel(tag).charAt(0) }}
+                    </span>
+                  }
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-gray-200"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                }
+              </button>
               <button (click)="deleteItem(lst.id, item.id)"
                       class="p-1.5 text-gray-300 hover:text-red-400 active:scale-[0.85] transition-all rounded-lg shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -99,6 +118,20 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       </button>
                       <span class="flex-1 text-sm text-gray-400 line-through leading-snug">{{ item.text }}</span>
+                      <!-- Person-tagger på fullførte -->
+                      <button (click)="openTagEditor(item)"
+                              class="flex items-center gap-0.5 shrink-0 active:scale-[0.9] transition-all">
+                        @if (item.assignedTo?.length) {
+                          @for (tag of item.assignedTo; track $index) {
+                            <span class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white opacity-60"
+                                  [style.background]="getTagColor(tag)">
+                              {{ getTagLabel(tag).charAt(0) }}
+                            </span>
+                          }
+                        } @else {
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-gray-200"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        }
+                      </button>
                       <button (click)="deleteItem(lst.id, item.id)"
                               class="p-1.5 text-gray-200 hover:text-red-400 active:scale-[0.85] transition-all rounded-lg shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -118,8 +151,8 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
         </div>
 
         <!-- Add item input -->
-        <div class="px-4 py-3 border-t border-gray-100 bg-white shrink-0">
-          <div class="flex gap-2">
+        <div class="px-4 pt-3 pb-4 border-t border-gray-100 bg-white shrink-0">
+          <div class="flex gap-2 mb-2">
             <input
               type="text"
               placeholder="Legg til nytt punkt..."
@@ -134,6 +167,19 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
           </div>
+          <!-- Person-velger for nytt punkt -->
+          @if (assignedOptions().length > 0) {
+            <div class="flex flex-wrap gap-1.5">
+              @for (opt of assignedOptions(); track getOptKey(opt)) {
+                <button (click)="toggleNewAssigned(opt)"
+                        class="px-2.5 py-1 rounded-xl text-xs font-semibold transition-all active:scale-[0.97]"
+                        [style.background]="isNewSelected(opt) ? getOptColor(opt) : ''"
+                        [class]="isNewSelected(opt) ? 'text-white' : 'bg-gray-100 text-gray-600'">
+                  {{ getOptLabel(opt) }}
+                </button>
+              }
+            </div>
+          }
         </div>
       </div>
     } @else {
@@ -147,9 +193,41 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
       </div>
     }
 
+    <!-- Bunnark: rediger tagger på eksisterende punkt -->
+    @if (editingTagsItemId()) {
+      <div class="fixed inset-0 bg-black/50 z-55 flex items-end justify-center"
+           (click)="editingTagsItemId.set(null)">
+        <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-6 pb-10 shadow-2xl"
+             (click)="$event.stopPropagation()">
+          <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+          <h3 class="text-base font-bold text-gray-800 mb-4">Hvem gjelder dette punktet?</h3>
+          <div class="flex flex-wrap gap-2 mb-6">
+            @for (opt of assignedOptions(); track getOptKey(opt)) {
+              <button (click)="toggleEditAssigned(opt)"
+                      class="px-3 py-1.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.97]"
+                      [style.background]="isEditSelected(opt) ? getOptColor(opt) : ''"
+                      [class]="isEditSelected(opt) ? 'text-white' : 'bg-gray-100 text-gray-600'">
+                {{ getOptLabel(opt) }}
+              </button>
+            }
+          </div>
+          <div class="flex gap-3">
+            <button (click)="editingTagsItemId.set(null)"
+                    class="flex-1 py-3 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-600 active:scale-[0.97] transition-transform">
+              Avbryt
+            </button>
+            <button (click)="saveItemTags()"
+                    class="flex-1 py-3 bg-blue-600 rounded-2xl text-sm font-semibold text-white shadow-sm shadow-blue-200 active:scale-[0.97] transition-transform">
+              Lagre
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
     <!-- Bekreftelsesmodal for å fjerne fullførte -->
     @if (isClearCompletedModalOpen()) {
-      <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-6"
+      <div class="fixed inset-0 bg-black/50 z-55 flex items-center justify-center px-6"
            (click)="isClearCompletedModalOpen.set(false)">
         <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl"
              (click)="$event.stopPropagation()">
@@ -176,7 +254,7 @@ import { ListService, AppList, ListItem } from '../../shared/services/list.servi
 
     <!-- Bekreftelsesmodal for nullstilling -->
     @if (isResetModalOpen()) {
-      <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-6"
+      <div class="fixed inset-0 bg-black/50 z-55 flex items-center justify-center px-6"
            (click)="isResetModalOpen.set(false)">
         <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl"
              (click)="$event.stopPropagation()">
@@ -206,6 +284,7 @@ export class ListDetailComponent {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private listService = inject(ListService);
+  private data = inject(SchoolDataService);
 
   readonly loading = signal(true);
   readonly newItemText = signal('');
@@ -216,11 +295,25 @@ export class ListDetailComponent {
   readonly pendingIds = signal<Set<string>>(new Set());
   private readonly pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+  readonly selectedNewAssigned = signal<AssignedToOption[]>([]);
+  readonly editingTagsItemId = signal<string | null>(null);
+  readonly editTagsSelected = signal<AssignedToOption[]>([]);
+
+  readonly assignedOptions = computed<AssignedToOption[]>(() => {
+    const opts: AssignedToOption[] = [
+      { type: 'parent', role: 'Mamma' },
+      { type: 'parent', role: 'Pappa' },
+    ];
+    for (const child of this.data.children()) {
+      opts.push({ type: 'child', childId: child.id });
+    }
+    return opts;
+  });
+
   readonly list = computed<AppList | null>(() => {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) return null;
     const lists = this.listService.lists();
-    // Support both doc-ID lookup and type-based lookup for singleton routes
     return lists.find((l) => l.id === id || l.type === id) ?? null;
   });
 
@@ -233,7 +326,6 @@ export class ListDetailComponent {
   });
 
   constructor() {
-    // Once lists load, mark loading done
     effect(() => {
       if (this.listService.lists().length >= 0) {
         this.loading.set(false);
@@ -247,6 +339,79 @@ export class ListDetailComponent {
     const done = lst.items.filter((i) => i.completed).length;
     if (done === total) return 'Alt fullført! 🎉';
     return `${done} av ${total} fullført`;
+  }
+
+  getOptKey(opt: AssignedToOption): string {
+    return opt.type === 'parent' ? `parent-${opt.role}` : `child-${opt.childId}`;
+  }
+
+  getOptLabel(opt: AssignedToOption): string {
+    if (opt.type === 'parent') return opt.role;
+    return this.data.children().find((c) => c.id === opt.childId)?.name ?? 'Ukjent';
+  }
+
+  getOptColor(opt: AssignedToOption): string {
+    if (opt.type === 'parent') return opt.role === 'Mamma' ? '#F43F5E' : '#3B82F6';
+    return this.data.children().find((c) => c.id === opt.childId)?.color ?? '#6B7280';
+  }
+
+  isNewSelected(opt: AssignedToOption): boolean {
+    return this.selectedNewAssigned().some((s) => this.getOptKey(s) === this.getOptKey(opt));
+  }
+
+  toggleNewAssigned(opt: AssignedToOption): void {
+    const key = this.getOptKey(opt);
+    this.selectedNewAssigned.update((prev) =>
+      prev.some((s) => this.getOptKey(s) === key)
+        ? prev.filter((s) => this.getOptKey(s) !== key)
+        : [...prev, opt]
+    );
+  }
+
+  getTagLabel(tag: AssignedTo): string {
+    if (tag.type === 'parent') return tag.role;
+    return this.data.children().find((c) => c.id === (tag as { type: 'child'; childId: string }).childId)?.name ?? 'Ukjent';
+  }
+
+  getTagColor(tag: AssignedTo): string {
+    if (tag.type === 'parent') return tag.role === 'Mamma' ? '#F43F5E' : '#3B82F6';
+    return this.data.children().find((c) => c.id === (tag as { type: 'child'; childId: string }).childId)?.color ?? '#6B7280';
+  }
+
+  openTagEditor(item: ListItem): void {
+    const current: AssignedToOption[] = (item.assignedTo ?? []).map((t) =>
+      t.type === 'parent'
+        ? { type: 'parent' as const, role: t.role as 'Mamma' | 'Pappa' }
+        : { type: 'child' as const, childId: (t as { type: 'child'; childId: string }).childId }
+    );
+    this.editTagsSelected.set(current);
+    this.editingTagsItemId.set(item.id);
+  }
+
+  isEditSelected(opt: AssignedToOption): boolean {
+    return this.editTagsSelected().some((s) => this.getOptKey(s) === this.getOptKey(opt));
+  }
+
+  toggleEditAssigned(opt: AssignedToOption): void {
+    const key = this.getOptKey(opt);
+    this.editTagsSelected.update((prev) =>
+      prev.some((s) => this.getOptKey(s) === key)
+        ? prev.filter((s) => this.getOptKey(s) !== key)
+        : [...prev, opt]
+    );
+  }
+
+  async saveItemTags(): Promise<void> {
+    const itemId = this.editingTagsItemId();
+    const lst = this.list();
+    if (!itemId || !lst) return;
+    const assignedTo: AssignedTo[] = this.editTagsSelected().map((o) =>
+      o.type === 'parent'
+        ? { type: 'parent', role: o.role }
+        : { type: 'child', childId: o.childId }
+    );
+    this.editingTagsItemId.set(null);
+    await this.listService.updateItemTags(lst.id, itemId, assignedTo);
   }
 
   toggleItem(listId: string, itemId: string, completed: boolean): void {
@@ -272,8 +437,14 @@ export class ListDetailComponent {
   async addItem(listId: string): Promise<void> {
     const text = this.newItemText().trim();
     if (!text) return;
+    const assignedTo: AssignedTo[] = this.selectedNewAssigned().map((o) =>
+      o.type === 'parent'
+        ? { type: 'parent', role: o.role }
+        : { type: 'child', childId: o.childId }
+    );
     this.newItemText.set('');
-    await this.listService.addItem(listId, text);
+    this.selectedNewAssigned.set([]);
+    await this.listService.addItem(listId, text, assignedTo.length ? assignedTo : undefined);
   }
 
   async deleteItem(listId: string, itemId: string): Promise<void> {

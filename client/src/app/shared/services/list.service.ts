@@ -11,11 +11,15 @@ import {
 import { AuthService } from './auth.service';
 import { HouseholdService } from './household.service';
 import { firebaseDb as db } from '../../core/firebase';
+import { AssignedTo } from '../../features/school-plan/models/school-plan.models';
+
+export type { AssignedTo };
 
 export interface ListItem {
   id: string;
   text: string;
   completed: boolean;
+  assignedTo?: AssignedTo[];
 }
 
 export interface AppList {
@@ -119,14 +123,24 @@ export class ListService {
     });
   }
 
-  async addItem(listId: string, text: string): Promise<void> {
+  async addItem(listId: string, text: string, assignedTo?: AssignedTo[]): Promise<void> {
     const list = this.lists().find((l) => l.id === listId);
     if (!list) return;
     const newItem: ListItem = { id: crypto.randomUUID(), text, completed: false };
+    if (assignedTo?.length) newItem.assignedTo = assignedTo;
     await updateDoc(this.listDocRef(listId), {
       items: [...list.items, newItem],
       updatedAt: Date.now(),
     });
+  }
+
+  async updateItemTags(listId: string, itemId: string, assignedTo: AssignedTo[]): Promise<void> {
+    const list = this.lists().find((l) => l.id === listId);
+    if (!list) return;
+    const updatedItems = list.items.map((item) =>
+      item.id === itemId ? { ...item, assignedTo } : item
+    );
+    await updateDoc(this.listDocRef(listId), { items: updatedItems, updatedAt: Date.now() });
   }
 
   async deleteItem(listId: string, itemId: string): Promise<void> {
