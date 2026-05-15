@@ -51,6 +51,19 @@ export interface WeekDayOption {
               </select>
             </div>
           }
+          @if (category === 'reminder') {
+            <label class="flex items-center gap-3 cursor-pointer">
+              <div class="relative">
+                <input type="checkbox" [(ngModel)]="notify" class="sr-only" />
+                <div class="w-10 h-6 rounded-full transition-colors"
+                     [class]="notify ? 'bg-amber-400' : 'bg-gray-200'">
+                  <div class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                       [class.translate-x-4]="notify"></div>
+                </div>
+              </div>
+              <span class="text-sm font-medium text-gray-700">Send push-varsel</span>
+            </label>
+          }
         </div>
 
         <div class="space-y-2 pt-1">
@@ -107,6 +120,7 @@ export class EventEditSheetComponent {
   category: SchoolEvent['category'] = 'homework';
   date = '';
   completed = false;
+  notify = true;
 
   constructor() {
     effect(() => {
@@ -116,6 +130,7 @@ export class EventEditSheetComponent {
       this.category = e.category;
       this.date = e.date;
       this.completed = e.completed ?? false;
+      this.notify = e.notify ?? true;
     });
   }
 
@@ -132,6 +147,7 @@ export class EventEditSheetComponent {
       description: this.description.trim(),
       category: this.category,
       completed: this.completed || undefined,
+      notify: this.category === 'reminder' ? this.notify : undefined,
     });
   }
 }

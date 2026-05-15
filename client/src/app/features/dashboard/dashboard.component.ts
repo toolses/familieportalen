@@ -124,7 +124,7 @@ interface ChildUkelekser {
           </div>
         }
 
-        @if (allTodayEvents().length === 0 && todayGoogleEvents().length === 0 && allUkelekser().length === 0 && tomorrowReminders().length === 0 && tomorrowManualReminders().length === 0 && todayManualReminders().length === 0 && todayManualEvents().length === 0) {
+        @if (allTodayEvents().length === 0 && todayGoogleEvents().length === 0 && allUkelekser().length === 0 && tomorrowReminders().length === 0 && tomorrowManualReminders().length === 0 && todayManualReminders().length === 0 && todayManualEvents().length === 0 && tomorrowGoogleEvents().length === 0 && tomorrowManualEvents().length === 0) {
           <div class="flex flex-col items-center py-12 text-center">
             <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
@@ -175,35 +175,6 @@ interface ChildUkelekser {
                   </div>
                   <span class="text-[10px] text-amber-600 font-medium bg-amber-100 px-1.5 py-0.5 rounded shrink-0">Påminnelse</span>
                 </button>
-              }
-            </div>
-          }
-
-          <!-- Google Calendar -->
-          @if (todayGoogleEvents().length > 0) {
-            <div class="space-y-2">
-              @for (event of todayGoogleEvents(); track event.id) {
-                <div class="flex gap-3 items-start bg-white border border-gray-200 rounded-xl p-3 shadow-xs"
-                     [style.border-left]="'3px solid ' + event.color">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <svg width="12" height="12" viewBox="0 0 24 24" class="shrink-0">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                      </svg>
-                      <span class="font-medium text-gray-800 text-sm">{{ event.summary }}</span>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
-                    @if (event.description) {
-                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
-                    }
-                    @if (event.location) {
-                      <p class="text-xs text-gray-400">{{ event.location }}</p>
-                    }
-                  </div>
-                </div>
               }
             </div>
           }
@@ -265,13 +236,58 @@ interface ChildUkelekser {
             </div>
           }
 
-          <!-- Morgendagens påminnelser -->
-          @if (tomorrowReminders().length > 0 || tomorrowManualReminders().length > 0) {
+          <!-- Google Calendar -->
+          @if (todayGoogleEvents().length > 0) {
+            <div class="space-y-2">
+              @for (event of todayGoogleEvents(); track event.id) {
+                <div class="flex gap-3 items-start bg-white border border-gray-200 rounded-xl p-3 shadow-xs"
+                     [style.border-left]="'3px solid ' + event.color">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <svg width="12" height="12" viewBox="0 0 24 24" class="shrink-0">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                      <span class="font-medium text-gray-800 text-sm">{{ event.summary }}</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
+                    @if (event.description) {
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                    }
+                    @if (event.location) {
+                      <p class="text-xs text-gray-400">{{ event.location }}</p>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Morgendagens hendelser -->
+          @if (tomorrowReminders().length > 0 || tomorrowManualReminders().length > 0 || tomorrowGoogleEvents().length > 0 || tomorrowManualEvents().length > 0) {
             <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
               @if (showTomorrowProminent()) {
                 <h3 class="text-xs font-semibold text-blue-500 uppercase tracking-wide px-1">Husk i morgen!</h3>
               } @else {
                 <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">I morgen</h3>
+              }
+              @for (event of tomorrowManualEvents(); track event.id) {
+                <div class="flex gap-3 items-start bg-white border border-slate-200 rounded-xl p-3"
+                     [style.border-left]="'3px solid ' + getAssignedColor(event.assignedTo)">
+                  <div class="flex-1 min-w-0">
+                    <span class="font-medium text-gray-800 text-sm">{{ event.title }}</span>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ formatManualEventTimeLabel(event) }}</p>
+                    @if (event.description) {
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                    }
+                    <p class="text-[10px] font-semibold mt-1" [style.color]="getAssignedColor(event.assignedTo)">
+                      {{ getAssignedLabel(event.assignedTo) }}
+                    </p>
+                  </div>
+                  <span class="text-[10px] text-indigo-600 font-medium bg-indigo-100 px-1.5 py-0.5 rounded shrink-0">Hendelse</span>
+                </div>
               }
               @for (event of tomorrowReminders(); track $index) {
                 <button (click)="openEditEvent(event)" class="w-full flex gap-3 items-start bg-white border border-slate-200 rounded-xl p-3 text-left active:bg-slate-100 transition-colors">
@@ -305,6 +321,29 @@ interface ChildUkelekser {
                   </div>
                   <span class="text-[10px] text-blue-600 font-medium bg-blue-100 px-1.5 py-0.5 rounded shrink-0">I morgen</span>
                 </button>
+              }
+              @for (event of tomorrowGoogleEvents(); track event.id) {
+                <div class="flex gap-3 items-start bg-white border border-slate-200 rounded-xl p-3"
+                     [style.border-left]="'3px solid ' + event.color">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <svg width="12" height="12" viewBox="0 0 24 24" class="shrink-0">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                      <span class="font-medium text-gray-800 text-sm">{{ event.summary }}</span>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ formatEventTimeLabel(event) }}</p>
+                    @if (event.description) {
+                      <p class="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{{ event.description }}</p>
+                    }
+                    @if (event.location) {
+                      <p class="text-xs text-gray-400">{{ event.location }}</p>
+                    }
+                  </div>
+                </div>
               }
             </div>
           }
@@ -524,6 +563,16 @@ export class DashboardComponent {
   tomorrowManualReminders = computed<ManualReminder[]>(() => {
     const date = this.tomorrowDate();
     return this.data.manualReminders().filter((r) => this.reminderOccursOnDate(r, date));
+  });
+
+  tomorrowGoogleEvents = computed<GoogleCalendarEvent[]>(() => {
+    const date = this.tomorrowDate();
+    return [...this.google.events(), ...this.google.personalEvents()].filter((e) => e.date === date);
+  });
+
+  tomorrowManualEvents = computed<ManualCalendarEvent[]>(() => {
+    const date = this.tomorrowDate();
+    return this.data.calendarEvents().filter((e) => this.calendarEventOccursOnDate(e, date));
   });
 
   // Ukelekser vises kun mandag–torsdag (0=søn,1=man,...,4=tor,5=fre,6=lør)

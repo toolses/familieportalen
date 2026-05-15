@@ -194,32 +194,47 @@ export const notifyDailyReminders = onSchedule(
     const today = todayOslo();
     const db = getFirestore();
 
-    // Hent alle husstander med manualReminders
+    // Hent alle husstander
     const householdsSnap = await db.collection('households').get();
 
     let totalSent = 0;
 
     for (const householdDoc of householdsSnap.docs) {
-      const householdId = householdDoc.id;
       const householdData = householdDoc.data();
-      const reminders = householdData.manualReminders ?? [];
 
-      const todaysReminders = reminders.filter(
+      // Manuelle påminnelser med notify=true
+      const manualReminders = householdData.manualReminders ?? [];
+      const todaysManual = manualReminders.filter(
         (r) => r.notify && reminderOccursOnDate(r, today)
       );
-      if (todaysReminders.length === 0) continue;
+
+      // Skoleplanpåminnelser — siste plan per barn, notify !== false (mangler felt = PÅ)
+      const plans = householdData.plans ?? {};
+      const todaysSchool = [];
+      for (const childPlans of Object.values(plans)) {
+        if (!Array.isArray(childPlans) || childPlans.length === 0) continue;
+        const latestPlan = childPlans[childPlans.length - 1];
+        for (const event of latestPlan.events ?? []) {
+          if (event.category === 'reminder' && event.date === today && event.notify !== false) {
+            todaysSchool.push(event);
+          }
+        }
+      }
+
+      const allReminders = [...todaysManual, ...todaysSchool];
+      if (allReminders.length === 0) continue;
 
       let title, body;
-      if (todaysReminders.length === 1) {
-        const r = todaysReminders[0];
+      if (allReminders.length === 1) {
+        const r = allReminders[0];
         title = `🔔 ${r.title}`;
         body = r.description || 'Du har en påminnelse i dag.';
       } else {
-        title = `🔔 ${todaysReminders.length} påminnelser i dag`;
-        body = todaysReminders.map((r) => r.title).join(', ');
+        title = `🔔 ${allReminders.length} påminnelser i dag`;
+        body = allReminders.map((r) => r.title).join(', ');
       }
 
-      // Finn alle brukere i denne husstanden og send til deres FCM-tokens
+      // Send til alle husstandsmedlemmer med FCM-tokens
       const members = householdData.members ?? [];
       for (const member of members) {
         const userDoc = await db.doc(`users/${member.uid}`).get();

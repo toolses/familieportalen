@@ -11,6 +11,8 @@ export interface SchoolEvent {
   description: string;
   category: 'school_class' | 'homework' | 'weekly_homework' | 'reminder' | 'information';
   completed?: boolean;
+  /** Send push-varsel kl. 06:00 på hendelsesdagen. Mangler felt = true (default PÅ). */
+  notify?: boolean;
 }
 
 export interface ParseRequest {
