@@ -1,59 +1,76 @@
-# Client
+# Familieportalen — Klient
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.7.
+Angular 21 PWA-frontend for Familieportalen. Kjøres mot Express dev-backend lokalt, og mot Firebase Cloud Functions i produksjon.
 
-## Development server
-
-To start a local development server, run:
+## Kom i gang
 
 ```bash
+# Installer avhengigheter
+npm install
+
+# Start utviklingsserver (med proxy mot Express backend på port 3000)
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Åpne [http://localhost:4200](http://localhost:4200) i nettleseren. Appen reloader automatisk ved filendringer.
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Bygge
 
 ```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
+# Produksjonsbygg
 ng build
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Artefakter legges i `dist/`. Produksjonsbuildet er optimalisert og bruker `environment.prod.ts` via filerstattninger.
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## Testing
 
 ```bash
-ng test
+# Enhetstester (Vitest)
+npm test
+
+# Watch-modus
+npm run test:watch
+
+# Testdekning
+npm run test:coverage
+
+# E2E-tester (Playwright) — krever at ng serve kjører
+npm run e2e
+
+# Playwright UI-modus
+npm run e2e:ui
 ```
 
-## Running end-to-end tests
+Se `vitest.config.ts` og `playwright.config.ts` for konfigurasjon.
 
-For end-to-end (e2e) testing, run:
+## Prosjektstruktur
 
-```bash
-ng e2e
+```
+src/app/
+  features/
+    dashboard/        — Hjem-siden (dagsoversikt)
+    calendar/         — Kalender (uke- og månedsvisning)
+    skole/            — Skoleplan (skanning og visning)
+    school-plan/      — Modeller og gjennomgangskomponent for skoleplan
+    lister/           — Sjekklister med taggering
+    dokumenter/       — Dokumentbehandling (opplasting og visning)
+    settings/         — Innstillinger (husstand, barn, varsler, samværsplan)
+    google/           — Google OAuth callback
+    login/            — Innloggingsside
+  shared/
+    services/         — Delte tjenester (auth, data, notifications)
+    interceptors/     — HTTP-interceptors (auth token)
+    components/       — Delte UI-komponenter
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Konvensjoner
 
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- Standalone Components, ingen NgModules
+- Signals for all tilstandshåndtering
+- `@if` / `@for` / `@switch` — aldri `*ngIf`/`*ngFor`
+- Inline templates (`template:`) — ikke `templateUrl:`
+- `input()` / `input.required()` — ikke `@Input()`-dekorator
+- `inject()` — ikke konstruktørinjeksjon
+- Tailwind CSS v4, mobil-først
+- All brukervendt tekst på norsk (bokmål)

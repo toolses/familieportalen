@@ -37,20 +37,36 @@ Two variants — identical feature code, different infrastructure:
 - Body size limit is 10MB (base64 images)
 
 ### General
-- No test framework set up yet
 - Authentication via Firebase Auth (Google popup) — ID token sent with every `/api/` request via `auth.interceptor.ts`
 - State persisted in Firestore `users/{uid}` — `FamilyState` object with children, plans, samværsplan, overrides
 - Dates use ISO format (YYYY-MM-DD) internally; frontend converts to DD.MM.YYYY for display
 - Error messages are in Norwegian
 
 ## Key Files
-- `functions/school-plan/school-plan.service.js` — Groq API integration and system prompt (prod)
-- `server/src/features/school-plan/school-plan.service.js` — Groq API integration (dev)
+- `functions/school-plan/school-plan.service.js` — Claude Sonnet 4.6 OCR integration and system prompt (prod)
+- `server/src/features/school-plan/school-plan.service.js` — Claude Sonnet 4.6 OCR integration (dev)
 - `client/src/app/features/skole/skole.component.ts` — Main school plan container (week view + scan flow)
 - `client/src/app/features/school-plan/models/school-plan.models.ts` — Shared TypeScript interfaces
+- `client/src/app/features/school-plan/plan-review.component.ts` — Post-scan review and editing of parsed events
 - `client/src/app/shared/services/school-data.service.ts` — Central state store (Firestore sync)
 - `client/src/app/shared/services/auth.service.ts` — Firebase Auth wrapper
 - `client/src/app/shared/interceptors/auth.interceptor.ts` — Attaches Firebase ID token to `/api/` requests
+- `client/src/app/features/dokumenter/dokumenter.component.ts` — Document management (upload, view, edit, delete)
+- `client/src/app/features/lister/list-detail.component.ts` — List detail with item tagging
+
+## Features
+
+| Route | Feature |
+|---|---|
+| `/` | Dashboard (Hjem) — daily overview of reminders, events, homework |
+| `/kalender` | Calendar — week/month view with Google Calendar integration |
+| `/skole` | School plan — scan, OCR, and manage weekly school schedules |
+| `/lister` | Lists — checklists with item tagging (assign to family members) |
+| `/dokumenter` | Documents — upload, view, and manage family documents/PDFs |
+| `/innstillinger` | Settings — household, children, push notifications, samværsplan |
+
+## School event categories
+`school_class`, `homework`, `weekly_homework`, `reminder`, `information` — use only these values.
 
 ## Testing
 
@@ -69,3 +85,14 @@ Two variants — identical feature code, different infrastructure:
 - Config: `client/playwright.config.ts`
 - Tests: `client/e2e/`
 - Only tests unauthenticated routes without auth mocking (login page, redirects)
+
+## CHANGELOG
+
+**Always update `CHANGELOG.md` when making user-facing changes.**
+
+- Add new entries under `## [Unreleased]` at the top of the file
+- Use the section headers: `### Lagt til`, `### Endret`, `### Fikset`, `### Fjernet`
+- Group entries by feature area (e.g. **Skoleplan:**, **Kalender:**, **Lister:**)
+- Write in Norwegian (Bokmål)
+- One line per change — describe *what changed from the user's perspective*, not implementation details
+- Do **not** create a new versioned section; leave entries under `[Unreleased]` until a release is tagged
