@@ -4,13 +4,14 @@ import type { SchoolEvent } from '../../features/school-plan/models/school-plan.
 
 type Category = SchoolEvent['category'];
 
-const CATEGORIES: Category[] = ['information', 'school_class', 'homework', 'reminder'];
+const CATEGORIES: Category[] = ['information', 'school_class', 'homework', 'weekly_homework', 'reminder'];
 
 describe('dotClass', () => {
   it('returnerer riktig Tailwind-klasse for hver kategori', () => {
     expect(dotClass('information')).toBe('bg-emerald-500');
     expect(dotClass('school_class')).toBe('bg-blue-500');
     expect(dotClass('homework')).toBe('bg-orange-500');
+    expect(dotClass('weekly_homework')).toBe('bg-orange-400');
     expect(dotClass('reminder')).toBe('bg-amber-500');
   });
 
@@ -30,6 +31,7 @@ describe('badgeClass', () => {
     expect(badgeClass('information')).toBe('bg-emerald-100 text-emerald-800');
     expect(badgeClass('school_class')).toBe('bg-blue-100 text-blue-800');
     expect(badgeClass('homework')).toBe('bg-orange-100 text-orange-800');
+    expect(badgeClass('weekly_homework')).toBe('bg-orange-50 text-orange-700');
     expect(badgeClass('reminder')).toBe('bg-amber-100 text-amber-800');
   });
 
@@ -43,6 +45,7 @@ describe('categoryLabel', () => {
     expect(categoryLabel('information')).toBe('Informasjon');
     expect(categoryLabel('school_class')).toBe('Fag');
     expect(categoryLabel('homework')).toBe('Lekse');
+    expect(categoryLabel('weekly_homework')).toBe('Ukelekse');
     expect(categoryLabel('reminder')).toBe('Påminnelse');
   });
 
