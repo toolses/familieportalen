@@ -182,7 +182,6 @@ interface ChildUkelekser {
           <!-- Google Calendar -->
           @if (todayGoogleEvents().length > 0) {
             <div class="space-y-2">
-              <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">Google Kalender</h3>
               @for (event of todayGoogleEvents(); track event.id) {
                 <div class="flex gap-3 items-start bg-white border border-gray-200 rounded-xl p-3 shadow-xs"
                      [style.border-left]="'3px solid ' + event.color">
