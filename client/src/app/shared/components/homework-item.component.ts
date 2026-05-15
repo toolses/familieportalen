@@ -33,7 +33,7 @@ import { SchoolEvent } from '../../features/school-plan/models/school-plan.model
           {{ event().title }}
         </span>
         @if (event().description) {
-          @let desc = event().description ?? '';
+          @let desc = event().description;
           @let isLong = desc.length > 150;
           <p class="text-sm mt-0.5 whitespace-pre-wrap"
              [class]="event().completed ? 'text-gray-300' : 'text-gray-500'">
