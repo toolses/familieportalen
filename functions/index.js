@@ -80,7 +80,7 @@ app.use((err, req, res, next) => {
 // Export as Gen 2 Cloud Function
 // invoker: 'public' is required for Firebase Hosting rewrites to reach the function.
 // App-level auth (verifyFirebaseToken) still enforces user authentication.
-export const api = onRequest({ region: 'europe-west1', memory: '512MiB', invoker: 'public' }, app);
+export const api = onRequest({ region: 'europe-west1', memory: '512MiB', invoker: 'public', secrets: ['ANTHROPIC_API_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'] }, app);
 
 // ── Scheduled push notifications ────────────────────────────────────────────
 export { notifyEveBeforeSwitch, notifyOnSwitchDay, notifyDailyReminders } from './notifications/scheduled-notifications.js';
